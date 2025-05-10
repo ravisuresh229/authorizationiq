@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+shap
+plotly
+boto3
+scikit-learn
+matplotlib
+streamlit-option-menu
+streamlit-lottie
+streamlit-extras
