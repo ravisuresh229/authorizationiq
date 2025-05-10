@@ -35,7 +35,25 @@ Key features:
 
 ## 📷 Screenshots
 
-_Add screenshots or GIFs of your app here to show the interface_
+## 📷 Screenshots
+
+### Home Page
+![Home](images/screenshot1.png)
+
+### Patient Information Input
+![Patient Info](images/screenshot2.png)
+
+### Request Details Input
+![Request Details](images/screenshot3.png)
+
+### Feature Importance Table
+![Feature Table](images/screenshot4.png)
+
+### Approval Probability
+![Approval Gauge](images/screenshot5.png)
+
+### Final Approval Output
+![Approval Output](images/screenshot6.png)
 
 ## 💻 Installation
 
