@@ -1,80 +1,106 @@
 # 🏥 PA Approval Predictor
 
-An AI-powered Prior Authorization (PA) approval prediction tool built using **Streamlit**, **SHAP explainability**, and **machine learning** to help healthcare providers estimate the likelihood of insurance approval for medical procedures.
+An AI-powered web application that predicts the probability of **prior authorization (PA)** approval for medical procedures using real-world patient and request features.
 
-## 🚀 Overview
+Built with:
+- 🧠 Machine Learning (scikit-learn)
+- 🧾 SHAP interpretability
+- 🚀 FastAPI backend (auto-reloads model from S3 every 60s)
+- 🌐 Streamlit frontend (fully interactive, styled, multi-step form)
+- ☁️ AWS S3 integration for live model hosting + prediction logging
 
-Prior authorization processes cause delays and financial losses across healthcare systems. This tool uses predictive modeling to estimate approval likelihood based on CPT codes, ICD-10 codes, and other key factors.
+---
 
-Key features:
+## 🔍 Overview
 
-- ✅ Interactive web app built with **Streamlit**
-- ✅ Visual explanations of predictions with **SHAP (SHapley values)**
-- ✅ Real-time validation of CPT and ICD-10 codes
-- ✅ Interactive charts and visualizations via **Plotly**
-- ✅ Integration with **AWS S3** for data storage (optional)
-- ✅ Modular code designed for expansion and integration into healthcare workflows
+Prior authorization delays cost the U.S. healthcare system **$50+ billion annually**. This tool aims to improve decision-making at the point-of-care by predicting the likelihood of PA approval based on key features like:
 
-## 📊 Example Use Case
+- Patient demographics (age, gender)
+- CPT & ICD-10 codes
+- Provider specialty
+- Payer
+- Documentation status
+- Urgency & denial history
 
-1. User inputs CPT code, ICD-10 diagnosis, and other procedure details
-2. Model predicts the probability of approval
-3. SHAP visualization explains the top contributing factors
-4. Results can inform pre-submission reviews and documentation improvements
+---
 
-## 🏗️ Tech Stack
+## 🧠 Machine Learning Model
 
-- Python
-- Streamlit
-- pandas, numpy
-- scikit-learn
-- SHAP
-- Plotly
-- boto3
-- Streamlit-extras and other UI plugins
+- Trained on a **synthetic dataset** of 10,000+ cases
+- Uses a **Random Forest classifier** within a scikit-learn pipeline
+- Automatically encodes categorical features
+- Uploaded to **AWS S3**, and reloaded by the FastAPI backend every 60s
 
-## 📷 Screenshots
+---
 
-## 📷 Screenshots
+## 🖥️ Live Demo
 
-### Home Page
-![Home](images/screenshot1.png)
+➡️ Streamlit Cloud App: **[https://...your-url...](https://...)**
 
-### Patient Information Input
-![Patient Info](images/screenshot2.png)
+---
 
-### Request Details Input
-![Request Details](images/screenshot3.png)
+## 🚀 Features
 
-### Feature Importance Table
-![Feature Table](images/screenshot4.png)
+### ✅ Streamlit Frontend
+- Multi-step form with input validation
+- Dynamic CPT & ICD-10 code validation (74k+ and 8k+ codes)
+- Animated UI, plotly gauge & bar charts
+- SHAP feature importance + auto-generated recommendations
 
-### Approval Probability
-![Approval Gauge](images/screenshot5.png)
+### 🧩 FastAPI Backend
+- `/predict` endpoint exposed on EC2 instance
+- Health check and input schema validation
+- Model reloads from S3 every 60 seconds
 
-### Final Approval Output
-![Approval Output](images/screenshot6.png)
+### ☁️ AWS Integration
+- **S3 buckets**:
+  - `pa-predictor-bucket-rs` – model storage
+  - `pa-predictor-logs` – prediction logging
+- Model and logs handled with `boto3`
 
-## 💻 Installation
+---
 
-1. Clone the repository:
+## 📦 Project Structure
 
 ```bash
-git clone https://github.com/yourusername/pa-approval-predictor.git
+.
+├── app.py                    # Streamlit frontend
+├── server.py                 # FastAPI backend
+├── requirements.txt          # Dependencies
+├── cpt_codes.csv             # Cleaned CPT codes
+├── icd10_codes.csv           # Cleaned ICD-10 codes
+├── provider_specialties.csv  # Valid specialties
+├── .gitignore
+### 🛠 Setup Instructions
+Clone the repo
+
+git clone https://github.com/ravisuresh229/pa-approval-predictor.git
 cd pa-approval-predictor
 
-2. Install Dependencies:
+Install dependencies
 pip install -r requirements.txt
 
-3. Run the app:
+Run the app locally
+
 streamlit run app.py
+Run the backend (optional)
 
-📁 Project Structure
+uvicorn server:app --reload --host 0.0.0.0 --port 8001
 
-├── app.py
-├── requirements.txt
-├── README.md
-├── /data
-├── /utils
+🔐 Environment Notes
+Set your AWS credentials using ~/.aws/credentials or environment variables
 
+Make sure the .venv/ and model pickle files are excluded from version control (.gitignore)
+
+🙋‍♂️ Contact
+Built with ❤️ by Ravi Suresh
+
+For questions or feedback, feel free to reach out.
+
+📈 Future Improvements
+Real-time retraining pipeline from logged cases
+
+HIPAA-compliant integration with EHR systems
+
+Dynamic CPT/ICD-10 code suggestions via embeddings
 
