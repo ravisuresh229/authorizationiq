@@ -786,16 +786,22 @@ if selected == "Predict":
                 payer_options,
                 index=payer_options.index(st.session_state.form_data['payer']) if st.session_state.form_data['payer'] in payer_options else 0
             )
+            urgency_options = ['Y', 'N']
+            current_urgency = st.session_state.form_data['urgency_flag']
+            urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
             st.session_state.form_data['urgency_flag'] = st.selectbox(
                 "Urgent Request", 
-                ['Y', 'N'],
-                index=['Y', 'N'].index(st.session_state.form_data['urgency_flag'])
+                urgency_options,
+                index=urgency_index
             )
         with col2:
+            doc_options = ['Y', 'N']
+            current_doc = st.session_state.form_data['documentation_complete']
+            doc_index = doc_options.index(current_doc) if current_doc in doc_options else 0
             st.session_state.form_data['documentation_complete'] = st.selectbox(
                 "Documentation Complete", 
-                ['Y', 'N'],
-                index=['Y', 'N'].index(st.session_state.form_data['documentation_complete'])
+                doc_options,
+                index=doc_index
             )
             st.session_state.form_data['prior_denials'] = st.number_input(
                 "Prior Denials", 
@@ -803,10 +809,13 @@ if selected == "Predict":
                 max_value=10, 
                 value=st.session_state.form_data['prior_denials']
             )
+            region_options = ['Midwest', 'Northeast', 'South', 'West']
+            current_region = st.session_state.form_data['region']
+            region_index = region_options.index(current_region) if current_region in region_options else 0
             st.session_state.form_data['region'] = st.selectbox(
                 "Region", 
-                ['Midwest', 'Northeast', 'South', 'West'],
-                index=['Midwest', 'Northeast', 'South', 'West'].index(st.session_state.form_data['region'])
+                region_options,
+                index=region_index
             )
         input_code = st.session_state.form_data['diagnosis_code'].strip().upper()
         input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
