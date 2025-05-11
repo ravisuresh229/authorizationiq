@@ -1,4 +1,11 @@
 import streamlit as st
+st.set_page_config(
+    page_title="PA Approval Predictor",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import pandas as pd
 import boto3
 import pickle
@@ -15,25 +22,72 @@ import streamlit.components.v1 as components
 import shap
 from collections import defaultdict
 
-st.set_page_config(
-    page_title="PA Approval Predictor",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+def process_cpt_codes():
+    """
+    Process the CPT codes from cpt4.csv and save them to cpt_codes.csv.
+    Cleans the codes by stripping whitespace, converting to uppercase,
+    removing duplicates and empty codes.
+    """
+    # Read the input file
+    df = pd.read_csv('cpt4.csv')
+    
+    # Rename columns to match our expected format
+    df = df.rename(columns={
+        'com.medigy.persist.reference.type.clincial.CPT.code': 'code',
+        'label': 'description'
+    })
+    
+    # Clean the codes
+    df['code'] = df['code'].astype(str).str.strip().str.upper()
+    
+    # Drop duplicates and empty codes
+    df = df.dropna(subset=['code'])
+    df = df.drop_duplicates(subset=['code'])
+    
+    # Save to CSV
+    df.to_csv('cpt_codes.csv', index=False)
+    return df
 
 @st.cache_data
 def load_cpt_codes():
+    """
+    Load CPT codes from the CSV file, generating it from cpt4.csv if needed.
+    Returns a set of valid codes for validation.
+    """
+    process_cpt_codes()  # Always (re)generate the CSV for up-to-date codes
     df = pd.read_csv('cpt_codes.csv', dtype={'code': str})
     valid_codes = set(df['code'].str.strip().str.upper())
     return valid_codes
 
 valid_cpt_codes = load_cpt_codes()
 
-
+# --- ICD-10 code processing and loading ---
+def process_icd10_codes():
+    """
+    Process the ICD-10 codes from icd10_2025.txt and save them to icd10_codes.csv.
+    Each line in the input file should be in the format: 'CODE Description'
+    """
+    codes_data = []
+    with open('icd10_2025.txt', 'r') as file:
+        for line in file:
+            if not line.strip():
+                continue
+            parts = line.strip().split(' ', 1)
+            if len(parts) == 2:
+                code = parts[0]
+                description = parts[1]
+                codes_data.append({'code': code, 'description': description})
+    df = pd.DataFrame(codes_data)
+    df.to_csv('icd10_codes.csv', index=False)
+    return df
 
 @st.cache_data
 def load_icd10_codes():
+    """
+    Load ICD-10 codes from the CSV file, generating it from icd10_2025.txt if needed.
+    Returns a set of valid codes for validation.
+    """
+    process_icd10_codes()  # Always (re)generate the CSV for up-to-date codes
     df = pd.read_csv('icd10_codes.csv')
     valid_codes = set(df['code'].str.strip().str.upper())
     return valid_codes
@@ -53,6 +107,7 @@ valid_specialties = load_provider_specialties()
 def load_model_from_s3():
     """
     Always load the latest model from S3 and print/display the S3 LastModified timestamp.
+    This model is trained on the expanded set of ICD-10 (74,000+) and CPT (8,000+) codes.
     """
     import boto3
     import pickle
@@ -69,12 +124,29 @@ def load_model_from_s3():
         # Download and load the model
         response = s3.get_object(Bucket=BUCKET_NAME, Key=MODEL_FILE)
         model = pickle.loads(response['Body'].read())
-        # Display timestamp in Streamlit UI
+        # Display timestamp and version info in Streamlit UI
         st.info(f"Model loaded from S3 at: {last_modified} (UTC)")
+        st.info("Model Version: Updated with expanded ICD-10 (74,000+) and CPT (8,000+) codes (May 2025)")
         return model
     except Exception as e:
         print(f"Error loading model from S3: {e}")
         st.error(f"Error loading model from S3: {e}")
+        return None
+
+def call_backend_api(input_dict):
+    """
+    Call the FastAPI backend to get predictions and feature importance
+    """
+    try:
+        url = "http://54.163.203.207:8001/predict"
+        response = requests.post(url, json=input_dict, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"API Error {response.status_code}: {response.json().get('detail')}")
+            return None
+    except Exception as e:
+        st.error(f"❌ Failed to contact backend: {e}")
         return None
 
 def get_recommendation(docs_complete, prior_denials):
@@ -86,32 +158,29 @@ def get_recommendation(docs_complete, prior_denials):
     else:
         return "No additional action recommended"
 
-def log_prediction(input_data, prediction, probability):
-    """Log the prediction to S3 (optional)"""
+def log_user_prediction(input_data, prediction, probability):
     try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_data = {
-            'timestamp': timestamp,
-            'input_data': input_data,
-            'prediction': prediction,
-            'probability': probability
-        }
-        
-        # Convert to CSV format
-        log_df = pd.DataFrame([log_data])
+        # Combine user inputs + results into one row
+        row = input_data.copy()
+        row['prediction'] = prediction
+        row['probability'] = round(probability, 2)
+        row['timestamp'] = datetime.utcnow().isoformat()
+
+        df = pd.DataFrame([row])
         csv_buffer = io.StringIO()
-        log_df.to_csv(csv_buffer, index=False)
-        
-        # Upload to S3
+        df.to_csv(csv_buffer, index=False)
+
+        # S3 key with timestamp
+        key = f"predictions/prediction_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+
         s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=f'predictions/prediction_{timestamp}.csv',
+            Bucket=LOG_BUCKET,
+            Key=key,
             Body=csv_buffer.getvalue()
         )
-        return True
+        print("✅ Prediction logged to S3:", key)
     except Exception as e:
-        st.warning(f"Could not log prediction: {e}")
-        return False
+        print("❌ Logging to S3 failed:", str(e))
 
 def load_lottie_url(url: str):
     r = requests.get(url)
@@ -154,256 +223,76 @@ def create_gauge_chart(probability):
 
 def get_feature_importance(model, input_data, background_data=None):
     """
-    Get feature importance for the prediction using SHAP.
-    Returns:
-    - feature_importance_df: DataFrame with top 5 feature importances
-    - explanation: Narrative explanation of the top feature
-    - original_shap: SHAP value of the top feature
-    - full_feature_importance_df: Filtered DataFrame with all meaningful feature importances
-    - grouped_importance_df: DataFrame with features grouped by category
+    Calculate SHAP values locally using the loaded model
     """
-    # Use background_data for SHAP if provided, else use input_data
-    if background_data is None:
-        background_data = input_data
+    try:
+        # Convert input to DataFrame if needed
+        if not isinstance(input_data, pd.DataFrame):
+            input_df = pd.DataFrame([input_data])
+        else:
+            input_df = input_data.copy()
 
-    # Get the preprocessor and inspect its type
-    preprocessor = model.named_steps['preprocessor']
-    print(f"Preprocessor type: {type(preprocessor)}")
-    
-    # Get preprocessed input first to know the expected number of features
-    preprocessed_input = preprocessor.transform(input_data)
-    if hasattr(preprocessed_input, 'toarray'):
-        preprocessed_input = preprocessed_input.toarray()
-    print(f"Preprocessed input shape: {preprocessed_input.shape}")
+        # Use input data as background if none provided
+        if background_data is None:
+            background_data = input_df.copy()
 
-    # Get feature names based on preprocessor type
-    if hasattr(preprocessor, 'get_feature_names_out'):
-        # For ColumnTransformer and other modern sklearn transformers
-        feature_names = preprocessor.get_feature_names_out()
-        print(f"Number of feature names from get_feature_names_out(): {len(feature_names)}")
+        # Initialize SHAP explainer
+        explainer = shap.Explainer(
+            model.predict_proba,
+            background_data,
+            algorithm="permutation",
+            feature_names=input_df.columns
+        )
+
+        # Calculate SHAP values
+        shap_values = explainer(input_df)
+
+        # Get top 5 features by absolute SHAP value
+        top_idx = np.argsort(-np.abs(shap_values.values[0]))[:5]
+        top_features = [
+            {
+                "feature": input_df.columns[i],
+                "shap_value": float(shap_values.values[0][i]),
+                "impact": "positive" if shap_values.values[0][i] > 0 else "negative"
+            }
+            for i in top_idx
+        ]
+
+        return top_features
+    except Exception as e:
+        print(f"Error calculating SHAP values: {e}")
+        return None
+
+def make_prediction(input_data):
+    """
+    Make prediction and calculate SHAP values locally
+    """
+    try:
+        # Convert input to DataFrame
+        df = pd.DataFrame([input_data])
         
-        # If we still have a mismatch, try to get names from individual transformers
-        if len(feature_names) != preprocessed_input.shape[1]:
-            print("Mismatch detected, trying to get names from individual transformers...")
-            if hasattr(preprocessor, 'transformers_'):
-                # For ColumnTransformer, collect names from each transformer
-                all_names = []
-                for name, trans, cols in preprocessor.transformers_:
-                    if hasattr(trans, 'get_feature_names_out'):
-                        trans_names = trans.get_feature_names_out(cols)
-                        all_names.extend(trans_names)
-                    else:
-                        # For transformers without get_feature_names_out, use column names
-                        all_names.extend(cols)
-                feature_names = np.array(all_names)
-                print(f"Number of feature names from transformers: {len(feature_names)}")
-    else:
-        # Fallback: use input column names
-        feature_names = input_data.columns
-        print(f"Using input column names: {len(feature_names)}")
-
-    # Ensure feature_names matches the preprocessed input shape
-    if len(feature_names) != preprocessed_input.shape[1]:
-        print(f"Warning: Feature name count ({len(feature_names)}) doesn't match preprocessed input columns ({preprocessed_input.shape[1]})")
-        # Create generic feature names if needed
-        feature_names = [f'feature_{i}' for i in range(preprocessed_input.shape[1])]
-        print(f"Created {len(feature_names)} generic feature names")
-
-    # Convert to DataFrame for easier handling
-    preprocessed_df = pd.DataFrame(preprocessed_input, columns=feature_names)
-    print(f"Created DataFrame with shape: {preprocessed_df.shape}")
-
-    # Define a prediction function for SHAP
-    def predict_proba_fn(X):
-        # Ensure X is a DataFrame with correct columns
-        if isinstance(X, np.ndarray):
-            X = pd.DataFrame(X, columns=input_data.columns)
-        return model.predict_proba(X)
-
-    # Use KernelExplainer for SHAP
-    explainer = shap.KernelExplainer(predict_proba_fn, background_data, link="logit")
-    shap_values = explainer.shap_values(input_data, nsamples=100)
-
-    # For binary classification, use class 1 SHAP values
-    if isinstance(shap_values, list):
-        values = shap_values[1]  # For binary classification, use class 1
-    else:
-        values = shap_values
-
-    # Ensure values is 1D array
-    if len(values.shape) > 1:
-        # If 2D, take mean across samples
-        mean_abs_shap = np.abs(values).mean(axis=0)
-        original_shap_values = values[0]  # Get first sample's values
-    else:
-        mean_abs_shap = np.abs(values)
-        original_shap_values = values
-
-    # Ensure all arrays are 1D
-    feature_names = np.array(feature_names).flatten()
-    mean_abs_shap = np.array(mean_abs_shap).flatten()
-    original_shap_values = np.array(original_shap_values).flatten()
-
-    # Debug prints to check array lengths
-    print("Length feature_names:", len(feature_names))
-    print("Length mean_abs_shap:", len(mean_abs_shap))
-    print("Length original_shap_values:", len(original_shap_values))
-
-    # 🔧 Array Length Correction
-    # Trim all arrays to the shortest length to prevent pandas ValueError
-    min_len = min(len(feature_names), len(mean_abs_shap), len(original_shap_values))
-    if len(set([len(feature_names), len(mean_abs_shap), len(original_shap_values)])) != 1:
-        print("Warning: array lengths mismatch → trimming to", min_len)
-    feature_names = feature_names[:min_len]
-    mean_abs_shap = mean_abs_shap[:min_len]
-    original_shap_values = original_shap_values[:min_len]
-
-    # Create DataFrame with feature names and SHAP values
-    feature_importance_df = pd.DataFrame({
-        'Feature': feature_names,
-        'Importance': mean_abs_shap,
-        'Original_SHAP': original_shap_values
-    })
-
-    # Sort by absolute importance and get top 5
-    feature_importance_df = feature_importance_df.sort_values('Importance', ascending=False).head(5)
-
-    # Add effect direction using the stored original SHAP values
-    feature_importance_df['Effect'] = feature_importance_df['Original_SHAP'].apply(lambda x: 'Increased' if x > 0 else 'Decreased')
-    feature_importance_df['Direction'] = feature_importance_df['Original_SHAP'].apply(lambda x: '↑' if x > 0 else '↓')
-
-    # Get the top feature and its importance
-    top_feature = feature_importance_df.iloc[0]
-    feature_name = top_feature['Feature']
-    original_shap = top_feature['Original_SHAP']
-
-    # Drop the Original_SHAP column as it was only used for effect direction
-    feature_importance_df = feature_importance_df.drop('Original_SHAP', axis=1)
-
-    # Clean up feature names for display
-    feature_importance_df['Feature'] = feature_importance_df['Feature'].apply(lambda x: 
-        x.replace('cat__', '')
-        .replace('_', ' ')
-        .replace('provider specialty', 'Provider Specialty:')
-        .replace('payer', 'Payer:')
-        .replace('diagnosis code', 'Diagnosis Code:')
-        .replace('procedure code', 'Procedure Code:')
-        .replace('patient gender', 'Patient Gender:')
-        .replace('urgency flag', 'Urgency:')
-        .replace('documentation complete', 'Documentation:')
-        .replace('region', 'Region:')
-    )
-
-    # Clean up the feature name for the explanation narrative
-    feature_name = (feature_name
-        .replace('cat__', '')
-        .replace('_', ' ')
-        .replace('provider specialty', 'Provider Specialty:')
-        .replace('payer', 'Payer:')
-        .replace('diagnosis code', 'Diagnosis Code:')
-        .replace('procedure code', 'Procedure Code:')
-        .replace('patient gender', 'Patient Gender:')
-        .replace('urgency flag', 'Urgency:')
-        .replace('documentation complete', 'Documentation:')
-        .replace('region', 'Region:')
-    )
-
-    # Generate user-friendly narrative explanation
-    if feature_name.startswith('Provider Specialty'):
-        specialty = feature_name.split(': ')[1]
-        if original_shap > 0:
-            explanation = f"Having a provider in the {specialty} specialty is associated with a higher chance of approval for this type of request, based on historical data."
-        else:
-            explanation = f"Having a provider in the {specialty} specialty is associated with a lower chance of approval for this type of request, based on historical data."
-    elif feature_name.startswith('Payer'):
-        payer = feature_name.split(': ')[1]
-        if original_shap > 0:
-            explanation = f"This insurance company ({payer}) has historically approved similar requests more often."
-        else:
-            explanation = f"This insurance company ({payer}) has historically approved similar requests less often."
-    elif feature_name.startswith('Diagnosis Code'):
-        code = feature_name.split(': ')[1]
-        if original_shap > 0:
-            explanation = f"The diagnosis code {code} is associated with higher approval rates for this type of request."
-        else:
-            explanation = f"The diagnosis code {code} is associated with lower approval rates for this type of request."
-    else:
-        if original_shap > 0:
-            explanation = f"The factor {feature_name} is associated with higher approval rates for this type of request."
-        else:
-            explanation = f"The factor {feature_name} is associated with lower approval rates for this type of request."
-
-    # Create full feature importance DataFrame
-    full_feature_importance_df = pd.DataFrame({
-        'Feature': feature_names,
-        'Importance': mean_abs_shap,
-        'Original_SHAP': original_shap_values
-    })
-    
-    # Clean up feature names for display
-    full_feature_importance_df['Feature'] = full_feature_importance_df['Feature'].apply(lambda x: 
-        x.replace('cat__', '')
-        .replace('_', ' ')
-        .replace('provider specialty', 'Provider Specialty:')
-        .replace('payer', 'Payer:')
-        .replace('diagnosis code', 'Diagnosis Code:')
-        .replace('procedure code', 'Procedure Code:')
-        .replace('patient gender', 'Patient Gender:')
-        .replace('urgency flag', 'Urgency:')
-        .replace('documentation complete', 'Documentation:')
-        .replace('region', 'Region:')
-    )
-    
-    # Add effect direction using the stored original SHAP values
-    full_feature_importance_df['Effect'] = full_feature_importance_df['Original_SHAP'].apply(lambda x: 'Increased' if x > 0 else 'Decreased')
-    full_feature_importance_df['Direction'] = full_feature_importance_df['Original_SHAP'].apply(lambda x: '↑' if x > 0 else '↓')
-    
-    # Drop the Original_SHAP column
-    full_feature_importance_df = full_feature_importance_df.drop('Original_SHAP', axis=1)
-    
-    # Filter features based on importance
-    full_feature_importance_df = full_feature_importance_df[
-        (full_feature_importance_df['Importance'] > 0) |  # Feature had meaningful impact
-        (abs(full_feature_importance_df['Importance']) >= 0.01)  # Feature had significant impact
-    ]
-    
-    # Round Importance to 3 decimal places
-    full_feature_importance_df['Importance'] = full_feature_importance_df['Importance'].round(3)
-    
-    # Sort by absolute importance
-    full_feature_importance_df = full_feature_importance_df.sort_values('Importance', ascending=False)
-
-    # Group features by category and sum their SHAP values
-    feature_categories = {
-        'Provider Specialty': 'provider specialty',
-        'Diagnosis Code': 'diagnosis code',
-        'Procedure Code': 'procedure code',
-        'Payer': 'payer',
-        'Patient Gender': 'patient gender',
-        'Urgency': 'urgency flag',
-        'Documentation': 'documentation complete',
-        'Region': 'region'
-    }
-    
-    grouped_importance = defaultdict(float)
-    for feature, importance in zip(feature_names, mean_abs_shap):
-        for category, prefix in feature_categories.items():
-            if prefix in feature.lower():
-                grouped_importance[category] += abs(importance)
-                break
-    
-    # Create grouped importance DataFrame
-    grouped_importance_df = pd.DataFrame({
-        'Category': list(grouped_importance.keys()),
-        'Importance': list(grouped_importance.values())
-    }).sort_values('Importance', ascending=False)
-
-    return feature_importance_df, explanation, original_shap, full_feature_importance_df, grouped_importance_df
+        # Make prediction
+        pred = model.predict(df)[0]
+        prob = float(model.predict_proba(df)[0][1])
+        
+        # Calculate SHAP values locally
+        feature_importance = get_feature_importance(model, df)
+        
+        return {
+            "approval_prediction": int(pred),
+            "probability": round(prob, 4),
+            "feature_importance": feature_importance,
+            "status": "success"
+        }
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        return None
 
 # Initialize S3 client
 s3 = boto3.client('s3')
 BUCKET_NAME = 'pa-predictor-bucket-rs'
 MODEL_FILE = 'pa_predictor_model.pkl'
+LOG_BUCKET = 'pa-predictor-logs'  # create this if it doesn't exist
 
 
 # Custom CSS styling with Google Fonts
@@ -746,16 +635,16 @@ if selected == "Predict":
     if 'step' not in st.session_state:
         st.session_state.step = 1
         st.session_state.form_data = {
-            'patient_age': 50,
-            'patient_gender': 'M',
-            'procedure_code': '27447',
-            'diagnosis_code': 'M17.11',
-            'provider_specialty': 'Ortho Surgeon',
-            'payer': 'Medicare',
-            'urgency_flag': 'Y',
-            'documentation_complete': 'Y',
+            'patient_age': None,
+            'patient_gender': None,
+            'procedure_code': '',
+            'diagnosis_code': '',
+            'provider_specialty': None,
+            'payer': None,
+            'urgency_flag': None,
+            'documentation_complete': None,
             'prior_denials': 0,
-            'region': 'Midwest'
+            'region': None
         }
     
     # Step indicator
@@ -789,17 +678,30 @@ if selected == "Predict":
                 "Patient Age", 
                 min_value=18, 
                 max_value=90, 
-                value=st.session_state.form_data['patient_age']
+                value=st.session_state.form_data['patient_age'] or 18,  # Default to 18 if None
+                help="Enter patient age between 18 and 90"
             )
+            
+            # Updated gender dropdown with placeholder
+            gender_options = ['Select Gender', 'M', 'F']
+            current_gender = st.session_state.form_data['patient_gender']
+            gender_index = 0 if current_gender is None else gender_options.index(current_gender)
             st.session_state.form_data['patient_gender'] = st.selectbox(
                 "Patient Gender", 
-                ['M', 'F'],
-                index=['M', 'F'].index(st.session_state.form_data['patient_gender'])
+                options=gender_options,
+                index=gender_index
             )
+            
+            # Add validation message for gender
+            if st.session_state.form_data['patient_gender'] == 'Select Gender':
+                st.warning("⚠️ Please select a valid gender.")
+            
             # Procedure Code input and validation
             st.session_state.form_data['procedure_code'] = st.text_input(
                 "Procedure Code (enter CPT code):",
-                value=st.session_state.form_data['procedure_code']
+                value=st.session_state.form_data['procedure_code'],
+                placeholder="Enter a valid CPT code",
+                help="Validated against expanded CPT code set (8,000+ codes)"
             )
             input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
             if input_proc_code:
@@ -808,20 +710,28 @@ if selected == "Predict":
                 else:
                     st.success(f"✅ Procedure code '{input_proc_code}' is valid.")
         with col2:
-            # Diagnosis Code input and validation (moved from Step 2)
+            # Diagnosis Code input and validation
             st.session_state.form_data['diagnosis_code'] = st.text_input(
                 "Diagnosis Code",
                 value=st.session_state.form_data['diagnosis_code'],
+                placeholder="Enter a valid ICD-10 code",
                 max_chars=10,
-                help="Enter any valid ICD-10 code (e.g., M17.11, K21.9, etc.)"
+                help="Validated against expanded ICD-10 code set (74,000+ codes)"
             )
+            
+            # Updated provider specialty dropdown with placeholder
+            specialty_options = ['Select Provider Specialty'] + valid_specialties
+            current_specialty = st.session_state.form_data['provider_specialty']
+            specialty_index = 0 if current_specialty is None else specialty_options.index(current_specialty)
             st.session_state.form_data['provider_specialty'] = st.selectbox(
                 "Provider Specialty",
-                valid_specialties,
-                index=valid_specialties.index(st.session_state.form_data['provider_specialty'])
-                if st.session_state.form_data['provider_specialty'] in valid_specialties else 0
-)
-
+                options=specialty_options,
+                index=specialty_index
+            )
+            
+            # Add validation message for provider specialty
+            if st.session_state.form_data['provider_specialty'] == 'Select Provider Specialty':
+                st.warning("⚠️ Please select a valid provider specialty.")
             
             input_diag_code = st.session_state.form_data['diagnosis_code'].strip().upper()
             if input_diag_code:
@@ -829,17 +739,31 @@ if selected == "Predict":
                     st.warning(f"⚠️ The diagnosis code '{input_diag_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
                 else:
                     st.success(f"✅ Diagnosis code '{input_diag_code}' is valid.")
-        # Only enable Next Step if both codes are valid
+        
+        # Only enable Next Step if all required fields are valid
         codes_valid = (
             input_proc_code in valid_cpt_codes and
-            input_diag_code in valid_icd10_codes
+            input_diag_code in valid_icd10_codes and
+            st.session_state.form_data['patient_gender'] in ['M', 'F'] and
+            st.session_state.form_data['provider_specialty'] in valid_specialties
         )
+        
         if st.button("Next Step", key="next_step_1"):
             if codes_valid:
                 st.session_state.step = 2
                 st.rerun()
             else:
-                st.error("Both procedure code and diagnosis code must be valid to proceed.")
+                error_messages = []
+                if not input_proc_code or input_proc_code not in valid_cpt_codes:
+                    error_messages.append("Please enter a valid procedure code")
+                if not input_diag_code or input_diag_code not in valid_icd10_codes:
+                    error_messages.append("Please enter a valid diagnosis code")
+                if st.session_state.form_data['patient_gender'] not in ['M', 'F']:
+                    error_messages.append("Please select a valid gender")
+                if st.session_state.form_data['provider_specialty'] not in valid_specialties:
+                    error_messages.append("Please select a valid provider specialty")
+                
+                st.error("⚠️ " + "\n".join(error_messages))
     
     # Step 2: Request Details
     elif st.session_state.step == 2:
@@ -854,6 +778,9 @@ if selected == "Predict":
             # Load payers dynamically from dataset
             payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
             payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
+            # Filter out any non-payer values (like header rows)
+            payer_options = [p for p in payer_options if p not in ['payer', '']]
+            st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
             st.session_state.form_data['payer'] = st.selectbox(
                 "Insurance Payer",
                 payer_options,
@@ -918,216 +845,256 @@ if selected == "Predict":
                     })
 
                     # Make prediction
-                    model = load_model_from_s3()
-                    if model is None:
-                        st.error("Failed to load the model. Please try again later.")
-                        st.stop()
+                    prediction_result = call_backend_api(input_data.iloc[0].to_dict())
 
-                    prediction = model.predict(input_data)[0]
-                    probability = model.predict_proba(input_data)[0][1] * 100
+                    if prediction_result:
+                        st.success("✅ Prediction received from API.")
+                        prediction = prediction_result["approval_prediction"]
+                        probability = prediction_result["probability"]
+                        feature_importance = prediction_result.get("feature_importance", [])
 
-                    # Load background dataset from synthetic_pa_dataset.csv, dropping the outcome column
-                    background_data = pd.read_csv('synthetic_pa_dataset.csv').drop(columns=['outcome']).sample(100, random_state=42)
-
-                    # Extract feature importance
-                    feature_importance_df, explanation, original_shap, full_feature_importance_df, grouped_importance_df = get_feature_importance(model, input_data, background_data)
-
-                    # Display in Streamlit
-                    st.subheader("Top Influencing Encoded Features")
-                    st.dataframe(feature_importance_df)
-
-                    # Dynamic recommendation logic
-                    if feature_importance_df.iloc[0]['Feature'].startswith('Provider Specialty'):
-                        if prediction == 0:
-                            dynamic_message = "⚠️ The provider specialty is driving the denial. Consider reviewing for specificity or documentation."
-                        else:
-                            dynamic_message = "✅ The provider specialty was a key approval factor."
-                    elif feature_importance_df.iloc[0]['Feature'].startswith('Payer'):
-                        if prediction == 0:
-                            dynamic_message = "⚠️ The insurance payer is driving the denial. Consider peer review or alternative coding."
-                        else:
-                            dynamic_message = "✅ The insurance payer was a key approval factor."
-                    elif feature_importance_df.iloc[0]['Feature'].startswith('Diagnosis Code'):
-                        if prediction == 0:
-                            dynamic_message = "⚠️ The diagnosis code is driving the denial. Consider reviewing for specificity or documentation."
-                        else:
-                            dynamic_message = "✅ The diagnosis code was a key approval factor."
-                    else:
-                        if prediction == 0:
-                            dynamic_message = "ℹ️ Other factors are influencing the decision."
-                        else:
-                            dynamic_message = "✅ Other factors contributed positively to the approval."
-
-                    st.info(dynamic_message)
-
-                    # Add vertical spacing above the results section
-                    st.markdown("<div style='height:2.5rem;'></div>", unsafe_allow_html=True)
-
-                    # Prediction Results title in its own card
-                    st.markdown("""
-                        <div style="text-align:center; font-size:1.25rem; font-weight:600; margin-bottom:1rem; color:#0f172a;">
-                        Prediction Results
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                    # Add vertical spacing between title and charts
-                    st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
-
-                    # Side-by-side charts
-                    chart_col1, chart_col2 = st.columns(2, gap="large")
-                    
-                    with chart_col1:
-                        # Gauge Chart with subheader
-                        st.subheader("Predicted Approval Probability")
-                        fig = create_gauge_chart(probability)
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                    with chart_col2:
-                        # Display narrative explanation
-                        st.info(explanation)
+                        # Display feature importance
+                        st.subheader("Top Influencing Encoded Features")
+                        if feature_importance:
+                            st.dataframe(pd.DataFrame(feature_importance))
                         
-                        # Add SHAP value clarification with tooltip
-                        st.caption("Understanding Feature Impact")
-                        st.caption("ℹ️ Hover for details", help="SHAP values measure how much each factor pushed the approval probability up or down in this case.")
+                        # Add explanation about feature importance
+                        st.info("""
+                        ℹ️ **About these features:**
+                        - These are the most influential factors in the model's prediction for this case
+                        - They represent encoded features from the model, not necessarily the exact codes you entered
+                        - The impact shows how much each factor pushed the prediction up or down
+                        """)
                         
-                        # Add note about feature types
-                        st.caption("Note: The model finds provider specialty and diagnosis code to be the most predictive features for prior authorization decisions, based on training data. Other factors may have smaller influence.")
+                        # Add section for specific procedure code impact
+                        st.subheader("Your Procedure Code Impact")
+                        # Find the exact procedure code feature
+                        proc_code_feature = f"procedure_code_{input_proc_code}"
+                        proc_code_impact = None
                         
-                        # Title for feature importance visualization
-                        st.markdown("<div style='font-weight:600; font-size:1.15rem; margin-bottom:0.5rem;'>Top Influencing Factors</div>", unsafe_allow_html=True)
+                        # Debug logging
+                        st.caption(f"Debug: Looking for feature: {proc_code_feature}")
+                        st.caption(f"Debug: Available procedure code features: {[f['feature'] for f in feature_importance if f['feature'].startswith('procedure_code_')][:5]}...")
                         
-                        # Create horizontal bar chart for top 5 features
-                        fig = px.bar(
-                            feature_importance_df,
-                            x='Importance',
-                            y='Feature',
-                            orientation='h',
-                            color='Effect',  # Color by effect direction
-                            color_discrete_map={'Increased': '#68d391', 'Decreased': '#fc8181'},
-                            labels={'Importance': 'Impact on Approval', 'Feature': 'Factor'},
-                            height=400,  # Increased height
-                            text='Direction'  # Add direction arrows
-                        )
-                        fig.update_layout(
-                            showlegend=True,
-                            legend_title='Effect on Approval',
-                            legend_orientation='v',
-                            legend_y=1,
-                            legend_x=1.02,
-                            margin=dict(l=0, r=40, t=0, b=0),
-                            xaxis_title="Impact on Approval",
-                            yaxis_title="",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            font=dict(size=12),  # Reduce overall font size
-                        )
-                        fig.update_xaxes(tickfont=dict(size=11), title_font=dict(size=12))
-                        fig.update_yaxes(tickfont=dict(size=11), title_font=dict(size=12), automargin=True)
-                        fig.update_traces(textposition='outside', cliponaxis=False)
-                        st.plotly_chart(fig, use_container_width=True)
+                        # Search in feature importance
+                        for f in feature_importance:
+                            if f['feature'].startswith('procedure_code_'):
+                                proc_code_impact = f
+                                break
+                        
+                        if proc_code_impact:
+                            # Create a styled message about the impact
+                            impact_msg = f"""
+                            Your procedure code ({input_proc_code}) had a {proc_code_impact['impact'].capitalize()} impact on the prediction.
+                            Impact strength: {abs(proc_code_impact['shap_value']):.3f}
+                            """
+                            if proc_code_impact['impact'] == 'positive':
+                                st.success(impact_msg)
+                            else:
+                                st.warning(impact_msg)
+                        else:
+                            st.info(f"""
+                            Your procedure code ({input_proc_code}) had minimal direct impact on this prediction.
+                            This is normal - the model considers many factors beyond just the procedure code.
+                            """)
 
-                    # Vertical spacing below charts
-                    st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
+                        # Dynamic recommendation logic
+                        if feature_importance[0]['feature'].startswith('Provider Specialty'):
+                            if prediction == 0:
+                                dynamic_message = "⚠️ The provider specialty is driving the denial. Consider reviewing for specificity or documentation."
+                            else:
+                                dynamic_message = "✅ The provider specialty was a key approval factor."
+                        elif feature_importance[0]['feature'].startswith('Payer'):
+                            if prediction == 0:
+                                dynamic_message = "⚠️ The insurance payer is driving the denial. Consider peer review or alternative coding."
+                            else:
+                                dynamic_message = "✅ The insurance payer was a key approval factor."
+                        elif feature_importance[0]['feature'].startswith('Diagnosis Code'):
+                            if prediction == 0:
+                                dynamic_message = "⚠️ The diagnosis code is driving the denial. Consider reviewing for specificity or documentation."
+                            else:
+                                dynamic_message = "✅ The diagnosis code was a key approval factor."
+                        else:
+                            if prediction == 0:
+                                dynamic_message = "ℹ️ Other factors are influencing the decision."
+                            else:
+                                dynamic_message = "✅ Other factors contributed positively to the approval."
 
-                    # Approval status badge in its own centered card with improved styling
-                    status = "Approved" if prediction == 1 else "Denied"
-                    status_class = "approved" if prediction == 1 else "denied"
-                    status_emoji = "✅" if prediction == 1 else "❌"
-                    st.markdown(f"""
-                        <div class="card-container" style="max-width: 300px; margin: 0 auto 2rem auto; text-align: center;">
-                            <div class="status-badge {status_class}" style="font-size:1.5rem; padding:1rem 2rem; display:inline-block; border-radius:8px;">
-                                {status_emoji} <span style="margin-left: 0.5rem;">{status}</span>
+                        st.info(dynamic_message)
+
+                        # Add vertical spacing above the results section
+                        st.markdown("<div style='height:2.5rem;'></div>", unsafe_allow_html=True)
+
+                        # Prediction Results title in its own card
+                        st.markdown("""
+                            <div style="text-align:center; font-size:1.25rem; font-weight:600; margin-bottom:1rem; color:#0f172a;">
+                            Prediction Results
                             </div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
 
-                    # Recommendation info below status card with dynamic styling
-                    recommendation = get_recommendation(st.session_state.form_data['documentation_complete'], st.session_state.form_data['prior_denials'])
-                    if "Submit missing documentation" in recommendation:
-                        st.warning(f"💡 Recommendation: {recommendation}")
-                    elif "No additional action recommended" in recommendation:
-                        st.success(f"💡 Recommendation: {recommendation}")
-                    else:
-                        st.error(f"💡 Recommendation: {recommendation}")
+                        # Add vertical spacing between title and charts
+                        st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
 
-                    # Add conditional message based on top feature importance with tooltip
-                    top_importance = feature_importance_df.iloc[0]['Importance']
-                    if top_importance < 0.1:
-                        st.info("No single factor strongly influenced this decision; approval is based on multiple small factors.")
-                    else:
-                        col1, col2 = st.columns([20, 1])
+                        # Side-by-side charts
+                        chart_col1, chart_col2 = st.columns(2, gap="large")
+                        
+                        with chart_col1:
+                            # Gauge Chart with subheader
+                            st.subheader("Predicted Approval Probability")
+                            fig = create_gauge_chart(probability)
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with chart_col2:
+                            # Display narrative explanation
+                            st.info("Understanding Feature Impact")
+                            st.caption("ℹ️ Hover for details", help="SHAP values measure how much each factor pushed the approval probability up or down in this case.")
+                            
+                            # Add note about feature types
+                            st.caption("Note: The model finds provider specialty and diagnosis code to be the most predictive features for prior authorization decisions, based on training data. Other factors may have smaller influence.")
+                            
+                            # Title for feature importance visualization
+                            st.markdown("<div style='font-weight:600; font-size:1.15rem; margin-bottom:0.5rem;'>Top Influencing Factors</div>", unsafe_allow_html=True)
+                            
+                            # Create horizontal bar chart for top 5 features
+                            fig = px.bar(
+                                pd.DataFrame(feature_importance),
+                                x='shap_value',
+                                y='feature',
+                                orientation='h',
+                                color='impact',  # Color by effect direction
+                                color_discrete_map={'positive': '#68d391', 'negative': '#fc8181'},
+                                labels={'shap_value': 'Impact on Approval', 'feature': 'Factor'},
+                                height=400,  # Increased height
+                                text='impact'  # Add direction arrows
+                            )
+                            fig.update_layout(
+                                showlegend=True,
+                                legend_title='Effect on Approval',
+                                legend_orientation='v',
+                                legend_y=1,
+                                legend_x=1.02,
+                                margin=dict(l=0, r=40, t=0, b=0),
+                                xaxis_title="Impact on Approval",
+                                yaxis_title="",
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                font=dict(size=12),  # Reduce overall font size
+                            )
+                            fig.update_xaxes(tickfont=dict(size=11), title_font=dict(size=12))
+                            fig.update_yaxes(tickfont=dict(size=11), title_font=dict(size=12), automargin=True)
+                            fig.update_traces(textposition='outside', cliponaxis=False)
+                            st.plotly_chart(fig, use_container_width=True)
+
+                        # Vertical spacing below charts
+                        st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
+
+                        # Approval status badge in its own centered card with improved styling
+                        status = "Approved" if prediction == 1 else "Denied"
+                        status_class = "approved" if prediction == 1 else "denied"
+                        status_emoji = "✅" if prediction == 1 else "❌"
+                        st.markdown(f"""
+                            <div class="card-container" style="max-width: 300px; margin: 0 auto 2rem auto; text-align: center;">
+                                <div class="status-badge {status_class}" style="font-size:1.5rem; padding:1rem 2rem; display:inline-block; border-radius:8px;">
+                                    {status_emoji} <span style="margin-left: 0.5rem;">{status}</span>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        # Recommendation info below status card with dynamic styling
+                        recommendation = get_recommendation(st.session_state.form_data['documentation_complete'], st.session_state.form_data['prior_denials'])
+                        if "Submit missing documentation" in recommendation:
+                            st.warning(f"💡 Recommendation: {recommendation}")
+                        elif "No additional action recommended" in recommendation:
+                            st.success(f"💡 Recommendation: {recommendation}")
+                        else:
+                            st.error(f"💡 Recommendation: {recommendation}")
+
+                        # Add conditional message based on top feature importance with tooltip
+                        top_importance = abs(feature_importance[0]['shap_value'])
+                        if top_importance < 0.1:
+                            st.info("No single factor strongly influenced this decision; approval is based on multiple small factors.")
+                        else:
+                            col1, col2 = st.columns([20, 1])
+                            with col1:
+                                st.info("Other factors also contributed to this decision.")
+                            with col2:
+                                st.caption("ℹ️", help="Other factors had lower impact but still influenced the prediction.")
+
+                        # Pre-define display_df for the download button, so it always exists even if advanced view is not checked
+                        display_df = pd.DataFrame(feature_importance)
+
+                        # The following checkboxes do NOT reset st.session_state.step, so toggling them won't reset the app to the first page.
+                        # This preserves the current step and keeps the user on the results page.
+                        col1, col2 = st.columns([1, 3])
                         with col1:
-                            st.info("Other factors also contributed to this decision.")
+                            show_advanced = st.checkbox("Show full feature importances", key="show_advanced")
                         with col2:
-                            st.caption("ℹ️", help="Other factors had lower impact but still influenced the prediction.")
+                            show_all_features = st.checkbox("Show all input features (including zero impact)", key="show_all_features")
 
-                    # Pre-define display_df for the download button, so it always exists even if advanced view is not checked
-                    display_df = full_feature_importance_df.copy()
+                        if show_advanced:
+                            st.markdown("### Full Feature Importances")
+                            st.caption("This table shows all features that contributed to this case.")
+                            
+                            # Filter features based on show_all_features setting
+                            if not show_all_features:
+                                display_df = display_df[display_df['shap_value'] > 0.001]  # Only show meaningful impacts
+                            
+                            # Add effect direction to full feature importance DataFrame
+                            display_df['impact'] = ['positive' if v > 0 else 'negative' for v in display_df['shap_value']]
+                            
+                            st.dataframe(
+                                display_df,
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                            
+                            # Show grouped feature importances
+                            st.markdown("### Feature Impact by Category")
+                            st.caption("This shows the total impact of each feature category on the prediction.")
+                            fig_grouped = px.bar(
+                                pd.DataFrame(feature_importance).groupby('impact').count().reset_index(),
+                                x='impact',
+                                y='shap_value',
+                                orientation='h',
+                                color='impact',
+                                color_discrete_sequence=px.colors.qualitative.Set3,
+                                labels={'shap_value': 'Total Impact', 'impact': 'Feature Category'},
+                                height=300
+                            )
+                            fig_grouped.update_layout(
+                                showlegend=False,
+                                margin=dict(l=0, r=0, t=0, b=0),
+                                xaxis_title="Total Impact",
+                                yaxis_title="",
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(0,0,0,0)"
+                            )
+                            st.plotly_chart(fig_grouped, use_container_width=True)
 
-                    # The following checkboxes do NOT reset st.session_state.step, so toggling them won't reset the app to the first page.
-                    # This preserves the current step and keeps the user on the results page.
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        show_advanced = st.checkbox("Show full feature importances", key="show_advanced")
-                    with col2:
-                        show_all_features = st.checkbox("Show all input features (including zero impact)", key="show_all_features")
-
-                    if show_advanced:
-                        st.markdown("### Full Feature Importances")
-                        st.caption("This table shows all features that contributed to this case.")
-                        
-                        # Filter features based on show_all_features setting
-                        if not show_all_features:
-                            display_df = display_df[display_df['Importance'] > 0.001]  # Only show meaningful impacts
-                        
-                        # Add effect direction to full feature importance DataFrame
-                        display_df['Effect'] = ['Increased' if v > 0 else 'Decreased' for v in values[0][display_df.index]]
-                        display_df['Direction'] = ['↑' if v > 0 else '↓' for v in values[0][display_df.index]]
-                        
-                        st.dataframe(
-                            display_df,
-                            use_container_width=True,
-                            hide_index=True
+                        # Download button for prediction results
+                        csv = display_df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Prediction Report",
+                            data=csv,
+                            file_name="prediction_report.csv",
+                            mime="text/csv",
+                            help="Download detailed prediction results as CSV"
                         )
-                        
-                        # Show grouped feature importances
-                        st.markdown("### Feature Impact by Category")
-                        st.caption("This shows the total impact of each feature category on the prediction.")
-                        fig_grouped = px.bar(
-                            grouped_importance_df,
-                            x='Importance',
-                            y='Category',
-                            orientation='h',
-                            color='Category',
-                            color_discrete_sequence=px.colors.qualitative.Set3,
-                            labels={'Importance': 'Total Impact', 'Category': 'Feature Category'},
-                            height=300
-                        )
-                        fig_grouped.update_layout(
-                            showlegend=False,
-                            margin=dict(l=0, r=0, t=0, b=0),
-                            xaxis_title="Total Impact",
-                            yaxis_title="",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(0,0,0,0)"
-                        )
-                        st.plotly_chart(fig_grouped, use_container_width=True)
-
-                    # Download button for prediction results
-                    csv = display_df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Prediction Report",
-                        data=csv,
-                        file_name="prediction_report.csv",
-                        mime="text/csv",
-                        help="Download detailed prediction results as CSV"
-                    )
 
     # Footer
     st.markdown("""
         <div class="footer">
             © 2025 PA Predictor. For demonstration purposes only.<br>
             Contact: ravikirans723@gmail.com
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Add version label at the bottom of the app
+    st.markdown("""
+        <div style='position: fixed; bottom: 0; width: 100%; background-color: #f0f2f6; padding: 10px; text-align: center;'>
+            <p style='margin: 0; color: #666; font-size: 0.8em;'>
+                Model Version: Updated with expanded ICD-10 (74,000+) and CPT (8,000+) codes (May 2025)
+            </p>
         </div>
     """, unsafe_allow_html=True)
 
