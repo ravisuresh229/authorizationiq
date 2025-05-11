@@ -1,0 +1,101 @@
+patient_age,patient_gender,procedure_code,diagnosis_code,provider_specialty,payer,urgency_flag,documentation_complete,prior_denials_provider,region
+69,M,99213,N18.9,ENT,Cigna,N,Y,10,South
+41,M,36415,K21.9,Dermatologist,Aetna,N,Y,4,Midwest
+75,F,36415,E11.9,Ortho Surgeon,Medicare,Y,Y,9,West
+77,F,99213,E11.9,Dermatologist,UnitedHealthcare,Y,Y,2,South
+38,M,29881,E11.9,Ortho Surgeon,UnitedHealthcare,N,Y,8,Northeast
+70,F,12001,E11.9,Dermatologist,Cigna,N,Y,2,Northeast
+53,F,12001,K21.9,Cardiologist,UnitedHealthcare,N,Y,1,Northeast
+61,F,29881,E11.9,Dermatologist,Medicare,N,Y,1,South
+70,F,29881,M17.11,Dermatologist,UnitedHealthcare,N,Y,0,Midwest
+88,M,27447,E11.9,Primary Care,Cigna,Y,Y,2,Midwest
+22,F,29881,M17.11,Dermatologist,Cigna,Y,Y,1,Midwest
+65,M,36415,I10,Dermatologist,UnitedHealthcare,N,N,0,South
+64,F,99213,M17.11,ENT,Aetna,Y,Y,6,South
+26,M,29881,K21.9,Dermatologist,Medicare,Y,Y,6,Midwest
+69,M,12001,N18.9,ENT,Cigna,Y,Y,6,South
+45,F,29881,N18.9,Ortho Surgeon,Medicare,N,Y,3,Northeast
+79,M,29881,E11.9,Ortho Surgeon,Cigna,N,Y,8,South
+79,M,12001,N18.9,Ortho Surgeon,Cigna,Y,Y,10,Midwest
+79,M,27447,I10,Cardiologist,UnitedHealthcare,N,N,5,West
+69,M,27447,K21.9,Dermatologist,UnitedHealthcare,N,Y,2,Midwest
+73,M,99213,M17.11,Cardiologist,Aetna,N,Y,4,West
+18,M,29881,N18.9,Dermatologist,Aetna,N,Y,6,West
+72,M,99213,M17.11,ENT,UnitedHealthcare,N,Y,10,South
+33,M,27447,E11.9,Primary Care,Aetna,N,Y,3,West
+76,F,99213,K21.9,Primary Care,Cigna,Y,Y,6,West
+50,F,29881,M17.11,Primary Care,UnitedHealthcare,Y,Y,6,South
+59,M,12001,K21.9,Ortho Surgeon,UnitedHealthcare,N,Y,0,West
+29,M,36415,I10,Ortho Surgeon,Medicare,Y,Y,2,West
+41,F,27447,E11.9,Primary Care,Medicare,N,Y,7,West
+42,M,29881,K21.9,Cardiologist,Aetna,Y,Y,8,West
+50,F,27447,N18.9,Dermatologist,UnitedHealthcare,N,Y,2,Midwest
+50,F,12001,I10,Primary Care,Aetna,Y,Y,5,Northeast
+68,F,99213,I10,Cardiologist,Medicare,N,Y,0,Midwest
+78,F,99213,E11.9,Primary Care,UnitedHealthcare,Y,Y,4,Northeast
+54,F,36415,M17.11,ENT,Cigna,Y,N,3,South
+49,M,27447,I10,Cardiologist,Medicare,N,N,9,South
+63,F,29881,K21.9,Primary Care,Aetna,N,Y,7,Midwest
+26,M,36415,K21.9,Cardiologist,Cigna,N,N,9,South
+74,F,36415,E11.9,Ortho Surgeon,UnitedHealthcare,N,Y,2,South
+32,F,29881,K21.9,Primary Care,Medicare,N,Y,5,Northeast
+75,F,27447,E11.9,Cardiologist,Aetna,Y,Y,4,Midwest
+25,M,12001,E11.9,Dermatologist,Medicare,Y,Y,3,Northeast
+64,M,12001,N18.9,Cardiologist,UnitedHealthcare,N,Y,0,West
+80,M,12001,K21.9,Cardiologist,Medicare,N,N,6,South
+26,F,36415,M17.11,Cardiologist,Aetna,Y,Y,5,West
+18,F,36415,N18.9,ENT,Cigna,Y,Y,2,Midwest
+74,M,12001,N18.9,Ortho Surgeon,Aetna,N,N,4,West
+33,F,29881,N18.9,Dermatologist,Medicare,N,Y,6,Northeast
+27,F,36415,E11.9,Cardiologist,UnitedHealthcare,Y,Y,2,Northeast
+18,F,36415,N18.9,Dermatologist,UnitedHealthcare,N,N,1,Midwest
+49,M,12001,E11.9,Cardiologist,Cigna,N,Y,2,South
+29,M,27447,M17.11,Cardiologist,Cigna,N,Y,1,Midwest
+52,M,27447,K21.9,ENT,Aetna,N,Y,1,South
+24,F,29881,N18.9,Cardiologist,Medicare,Y,N,3,Midwest
+38,M,27447,E11.9,Cardiologist,Medicare,Y,Y,2,Midwest
+53,F,27447,N18.9,Dermatologist,Medicare,Y,Y,8,South
+47,M,27447,E11.9,Ortho Surgeon,Aetna,Y,N,0,West
+29,M,27447,I10,Dermatologist,Medicare,Y,N,3,South
+33,M,36415,I10,Dermatologist,Medicare,N,Y,3,Midwest
+40,F,27447,N18.9,ENT,Aetna,N,Y,9,Midwest
+52,M,36415,I10,Primary Care,Aetna,Y,Y,9,Northeast
+34,M,36415,K21.9,Ortho Surgeon,Aetna,Y,Y,4,Midwest
+54,F,99213,N18.9,Ortho Surgeon,Aetna,N,Y,6,Midwest
+62,F,12001,E11.9,Primary Care,Medicare,N,Y,10,Northeast
+36,M,99213,N18.9,ENT,Aetna,N,Y,3,West
+89,M,27447,M17.11,Primary Care,Medicare,N,N,0,Midwest
+73,M,36415,K21.9,Dermatologist,Medicare,N,Y,4,West
+53,M,99213,E11.9,Ortho Surgeon,Aetna,Y,Y,0,Midwest
+71,F,99213,M17.11,Primary Care,UnitedHealthcare,N,N,7,Northeast
+41,F,36415,K21.9,Dermatologist,UnitedHealthcare,N,Y,1,West
+58,F,99213,M17.11,Ortho Surgeon,Medicare,Y,Y,2,Midwest
+23,F,99213,N18.9,Ortho Surgeon,Aetna,N,N,1,South
+22,M,27447,M17.11,Cardiologist,UnitedHealthcare,Y,Y,4,Northeast
+80,M,99213,I10,Ortho Surgeon,Medicare,Y,Y,2,South
+18,M,12001,M17.11,ENT,Cigna,Y,N,4,South
+70,M,29881,K21.9,Primary Care,Medicare,Y,Y,0,South
+62,M,12001,M17.11,Ortho Surgeon,UnitedHealthcare,N,Y,7,South
+43,F,29881,I10,Primary Care,Aetna,N,Y,4,Northeast
+74,M,36415,N18.9,Cardiologist,Cigna,Y,N,1,Northeast
+67,F,29881,I10,Primary Care,Cigna,N,Y,5,Midwest
+47,M,29881,I10,Ortho Surgeon,Medicare,Y,Y,7,Midwest
+34,F,12001,N18.9,Cardiologist,Aetna,Y,Y,10,South
+40,M,99213,E11.9,Dermatologist,UnitedHealthcare,Y,N,2,South
+49,F,36415,K21.9,Primary Care,Cigna,Y,Y,9,Midwest
+39,M,27447,N18.9,Ortho Surgeon,UnitedHealthcare,N,N,0,Northeast
+62,M,27447,K21.9,Ortho Surgeon,Cigna,Y,Y,7,Northeast
+80,F,36415,M17.11,Cardiologist,UnitedHealthcare,Y,Y,2,Midwest
+69,M,29881,E11.9,Cardiologist,Medicare,N,Y,7,South
+24,M,99213,E11.9,ENT,Aetna,N,Y,2,South
+81,M,36415,E11.9,Cardiologist,Cigna,Y,Y,5,Northeast
+61,M,27447,N18.9,Dermatologist,Medicare,N,Y,8,Midwest
+35,M,12001,K21.9,Ortho Surgeon,UnitedHealthcare,Y,Y,4,Northeast
+69,F,29881,I10,Primary Care,Medicare,N,Y,0,Midwest
+39,M,12001,I10,Ortho Surgeon,Cigna,Y,Y,7,Midwest
+53,F,29881,E11.9,Dermatologist,Cigna,N,Y,5,Midwest
+68,F,27447,K21.9,Primary Care,UnitedHealthcare,N,Y,4,Northeast
+43,F,12001,I10,Dermatologist,Medicare,N,Y,0,Northeast
+31,F,36415,I10,Dermatologist,Medicare,Y,Y,5,Northeast
+27,M,29881,E11.9,Cardiologist,Medicare,N,Y,0,South
+90,M,27447,I10,Primary Care,Aetna,Y,N,1,Northeast

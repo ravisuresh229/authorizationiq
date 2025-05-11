@@ -16,11 +16,26 @@ BUCKET_NAME = 'pa-predictor-bucket-rs'
 MODEL_FILE = 'pa_predictor_model.pkl'
 
 def load_data_from_s3():
-    """Load the CSV file from S3 into a pandas DataFrame"""
+    """
+    Load the expanded synthetic dataset from S3 into a pandas DataFrame.
+    This dataset now includes the full set of ICD-10 and CPT codes.
+    """
     try:
+        print("Loading data from S3...")
         response = s3.get_object(Bucket=BUCKET_NAME, Key='synthetic_pa_dataset_v2.csv')
         df = pd.read_csv(io.BytesIO(response['Body'].read()))
         print("Successfully loaded data from S3")
+        
+        # Print detailed dataset statistics
+        print("\nDataset Statistics:")
+        print(f"Total rows: {len(df)}")
+        print(f"Unique diagnosis codes: {df['diagnosis_code'].nunique()}")
+        print("\nTop 5 most frequent diagnosis codes:")
+        print(df['diagnosis_code'].value_counts().head())
+        print(f"\nUnique procedure codes: {df['procedure_code'].nunique()}")
+        print("\nTop 5 most frequent procedure codes:")
+        print(df['procedure_code'].value_counts().head())
+        
         return df
     except Exception as e:
         print(f"Error loading data from S3: {e}")
@@ -49,39 +64,36 @@ def preprocess_data(df):
     return X, y, preprocessor
 
 def train_model(X, y, preprocessor):
-    """Train the model and return the pipeline"""
-    # Create the full pipeline
+    """Train the model and return it along with test data"""
+    # Split the data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Create and train the pipeline
     pipeline = Pipeline([
         ('preprocessor', preprocessor),
-        ('classifier', LogisticRegression(random_state=42, max_iter=1000))
+        ('classifier', LogisticRegression(max_iter=1000))
     ])
     
-    # Split the data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-    
-    # Train the model
+    print("\nTraining model...")
     pipeline.fit(X_train, y_train)
     
-    # Make predictions
+    # Evaluate on test set
     y_pred = pipeline.predict(X_test)
-    
-    # Calculate metrics
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     
-    print("\nModel Performance Metrics:")
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"F1 Score: {f1:.4f}")
+    print("\nModel Performance:")
+    print(f"Accuracy: {accuracy:.3f}")
+    print(f"F1 Score: {f1:.3f}")
     print("\nDetailed Classification Report:")
     print(classification_report(y_test, y_pred))
     
     return pipeline, X_test, y_test
 
 def save_model_to_s3(model):
-    """Save the trained model to S3"""
+    """Save the model to S3"""
     try:
+        print("\nSaving model to S3...")
         # Save model to bytes
         model_bytes = pickle.dumps(model)
         
@@ -91,14 +103,13 @@ def save_model_to_s3(model):
             Key=MODEL_FILE,
             Body=model_bytes
         )
-        print(f"\nModel successfully saved to s3://{BUCKET_NAME}/{MODEL_FILE}")
+        print(f"Model successfully saved to s3://{BUCKET_NAME}/{MODEL_FILE}")
     except Exception as e:
         print(f"Error saving model to S3: {e}")
         raise
 
 def main():
     # Load data
-    print("Loading data from S3...")
     df = load_data_from_s3()
     
     # Preprocess data
@@ -106,11 +117,9 @@ def main():
     X, y, preprocessor = preprocess_data(df)
     
     # Train model and get metrics
-    print("\nTraining model...")
     model, X_test, y_test = train_model(X, y, preprocessor)
     
     # Save model to S3
-    print("\nSaving model to S3...")
     save_model_to_s3(model)
 
 if __name__ == "__main__":
