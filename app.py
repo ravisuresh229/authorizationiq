@@ -1209,8 +1209,3 @@ def load_model_locally_from_s3():
 # Load the local model for SHAP explanations
 local_model = load_model_locally_from_s3()
 
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 10000))
-    st.run("app.py", server_port=port)
-
