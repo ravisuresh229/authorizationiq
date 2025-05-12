@@ -996,13 +996,26 @@ if selected == "Predict":
                         # Display Prediction Summary first
                         st.markdown("### ✅ Prediction Summary")
                         st.markdown("---")
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            st.markdown(f"**Approval Status**")
-                            st.markdown(f"<span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
-                        with col2:
-                            st.markdown("**Approval Probability**")
-                            st.markdown(f"<span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+                        
+                        # Debug information
+                        if DEBUG_MODE:
+                            st.write("🔍 Session Keys:", list(st.session_state.keys()))
+                        
+                        try:
+                            # Create columns for status and probability
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                st.markdown(f"**Approval Status**")
+                                st.markdown(f"<span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
+                            with col2:
+                                st.markdown("**Approval Probability**")
+                                st.markdown(f"<span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+                        except Exception as e:
+                            st.error(f"❌ Streamlit Cloud layout error: {e}")
+                            # Fallback display without columns
+                            st.markdown(f"**Approval Status:** <span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
+                            st.markdown(f"**Approval Probability:** <span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+                            st.stop()
 
                         st.markdown("---")
                         
