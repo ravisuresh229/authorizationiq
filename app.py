@@ -799,12 +799,12 @@ if selected == "Predict":
             )
             
             # Updated gender dropdown with placeholder
-            gender_options = ['Select Gender', 'M', 'F']
-            current_gender = st.session_state.form_data['patient_gender']
-            gender_index = gender_options.index(current_gender) if current_gender in gender_options else 0
+            patient_gender_options = ['Select Gender', 'M', 'F']
+            current_gender = st.session_state.form_data.get('patient_gender')
+            gender_index = patient_gender_options.index(current_gender) if current_gender in patient_gender_options else 0
             st.session_state.form_data['patient_gender'] = st.selectbox(
-                "Patient Gender", 
-                options=gender_options,
+                "Patient Gender",
+                options=patient_gender_options,
                 index=gender_index
             )
             
@@ -836,12 +836,12 @@ if selected == "Predict":
             )
             
             # Updated provider specialty dropdown with placeholder
-            specialty_options = ['Select Provider Specialty'] + valid_specialties
-            current_specialty = st.session_state.form_data['provider_specialty']
-            specialty_index = specialty_options.index(current_specialty) if current_specialty in specialty_options else 0
+            provider_specialty_options = ['Select Provider Specialty'] + valid_specialties
+            current_specialty = st.session_state.form_data.get('provider_specialty')
+            specialty_index = provider_specialty_options.index(current_specialty) if current_specialty in provider_specialty_options else 0
             st.session_state.form_data['provider_specialty'] = st.selectbox(
                 "Provider Specialty",
-                options=specialty_options,
+                options=provider_specialty_options,
                 index=specialty_index
             )
             
