@@ -1176,10 +1176,35 @@ elif selected == "About":
 
 @st.cache_resource
 def load_model_locally_from_s3():
-    s3 = boto3.client("s3")
-    response = s3.get_object(Bucket="pa-predictor-bucket-rs", Key="pa_predictor_model.pkl")
-    model = pickle.loads(response['Body'].read())
-    return model
+    try:
+        # Print AWS credentials for debugging (remove in production)
+        print("AWS Environment Variables:")
+        print(f"AWS_ACCESS_KEY_ID: {os.getenv('AWS_ACCESS_KEY_ID', 'Not Set')[:5]}...")
+        print(f"AWS_SECRET_ACCESS_KEY: {os.getenv('AWS_SECRET_ACCESS_KEY', 'Not Set')[:5]}...")
+        print(f"AWS_REGION: {os.getenv('AWS_REGION', 'Not Set')}")
+        
+        # Initialize S3 client with explicit region
+        s3 = boto3.client(
+            "s3",
+            region_name=os.getenv("AWS_REGION", "us-east-1"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+        )
+        
+        # Attempt to load the model
+        response = s3.get_object(
+            Bucket="pa-predictor-bucket-rs",
+            Key="pa_predictor_model.pkl"
+        )
+        model = pickle.loads(response['Body'].read())
+        print("✅ Model successfully loaded from S3")
+        return model
+        
+    except Exception as e:
+        error_msg = f"❌ Error loading model from S3: {str(e)}"
+        print(error_msg)
+        st.error(error_msg)
+        return None
 
 # Load the local model for SHAP explanations
 local_model = load_model_locally_from_s3()
