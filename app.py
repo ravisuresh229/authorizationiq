@@ -788,17 +788,22 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
+        # --- PATCH: Safe fallback for all Step 1 widgets (Patient Information) ---
         col1, col2 = st.columns(2)
         with col1:
+            # Patient Age
+            age_val = st.session_state.form_data.get('patient_age')
+            if age_val is None or not (18 <= age_val <= 90):
+                age_val = 18
             st.session_state.form_data['patient_age'] = st.number_input(
-                "Patient Age", 
-                min_value=18, 
-                max_value=90, 
-                value=st.session_state.form_data['patient_age'] or 18,  # Default to 18 if None
+                "Patient Age",
+                min_value=18,
+                max_value=90,
+                value=age_val,
                 help="Enter patient age between 18 and 90"
             )
-            
-            # Updated gender dropdown with placeholder
+
+            # Patient Gender
             patient_gender_options = ['Select Gender', 'M', 'F']
             current_gender = st.session_state.form_data.get('patient_gender')
             gender_index = patient_gender_options.index(current_gender) if current_gender in patient_gender_options else 0
@@ -807,15 +812,16 @@ if selected == "Predict":
                 options=patient_gender_options,
                 index=gender_index
             )
-            
-            # Add validation message for gender
             if st.session_state.form_data['patient_gender'] == 'Select Gender':
                 st.warning("⚠️ Please select a valid gender.")
-            
-            # Procedure Code input and validation
+
+            # Procedure Code
+            proc_code_val = st.session_state.form_data.get('procedure_code')
+            if proc_code_val is None:
+                proc_code_val = ''
             st.session_state.form_data['procedure_code'] = st.text_input(
                 "Procedure Code (enter CPT code):",
-                value=st.session_state.form_data['procedure_code'],
+                value=proc_code_val,
                 placeholder="Enter a valid CPT code",
                 help="Validated against expanded CPT code set (8,000+ codes)"
             )
@@ -825,17 +831,21 @@ if selected == "Predict":
                     st.warning(f"⚠️ The procedure code '{input_proc_code}' is not a valid CPT code. Please correct it before proceeding.")
                 else:
                     st.success(f"✅ Procedure code '{input_proc_code}' is valid.")
+
         with col2:
-            # Diagnosis Code input and validation
+            # Diagnosis Code
+            diag_code_val = st.session_state.form_data.get('diagnosis_code')
+            if diag_code_val is None:
+                diag_code_val = ''
             st.session_state.form_data['diagnosis_code'] = st.text_input(
                 "Diagnosis Code",
-                value=st.session_state.form_data['diagnosis_code'],
+                value=diag_code_val,
                 placeholder="Enter a valid ICD-10 code",
                 max_chars=10,
                 help="Validated against expanded ICD-10 code set (74,000+ codes)"
             )
-            
-            # Updated provider specialty dropdown with placeholder
+
+            # Provider Specialty
             provider_specialty_options = ['Select Provider Specialty'] + valid_specialties
             current_specialty = st.session_state.form_data.get('provider_specialty')
             specialty_index = provider_specialty_options.index(current_specialty) if current_specialty in provider_specialty_options else 0
@@ -844,11 +854,9 @@ if selected == "Predict":
                 options=provider_specialty_options,
                 index=specialty_index
             )
-            
-            # Add validation message for provider specialty
             if st.session_state.form_data['provider_specialty'] == 'Select Provider Specialty':
                 st.warning("⚠️ Please select a valid provider specialty.")
-            
+
             input_diag_code = st.session_state.form_data['diagnosis_code'].strip().upper()
             if input_diag_code:
                 if input_diag_code not in valid_icd10_codes:
@@ -889,37 +897,33 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
+        # --- PATCH: Safe fallback for all Step 2 widgets (Request Details) ---
         col1, col2 = st.columns(2)
         with col1:
-            if DEBUG_MODE:
-                st.write("🔍 Session Keys:", list(st.session_state.keys()))
-            try:
-                # Load payers dynamically from dataset
-                payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
-                payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
-                # Filter out any non-payer values (like header rows)
-                payer_options = [p for p in payer_options if p not in ['payer', '']]
-                st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
-                st.session_state.form_data['payer'] = st.selectbox(
-                    "Insurance Payer",
-                    payer_options,
-                    index=payer_options.index(st.session_state.form_data['payer']) if st.session_state.form_data['payer'] in payer_options else 0
-                )
-                # --- PATCH: Safe selectbox index fallback for all relevant fields ---
-                # Urgency Flag
-                urgency_options = ['Y', 'N']
-                current_urgency = st.session_state.form_data.get('urgency_flag')
-                urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
-                st.session_state.form_data['urgency_flag'] = st.selectbox(
-                    "Urgent Request",
-                    options=urgency_options,
-                    index=urgency_index
-                )
-            except Exception as e:
-                st.error(f"❌ Streamlit Cloud layout error: {e}")
-                st.stop()
+            # Insurance Payer
+            payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
+            payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
+            payer_options = [p for p in payer_options if p not in ['payer', '']]
+            current_payer = st.session_state.form_data.get('payer')
+            payer_index = payer_options.index(current_payer) if current_payer in payer_options else 0
+            st.session_state.form_data['payer'] = st.selectbox(
+                "Insurance Payer",
+                options=payer_options,
+                index=payer_index
+            )
+            st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
+
+            # Urgent Request
+            urgency_options = ['Y', 'N']
+            current_urgency = st.session_state.form_data.get('urgency_flag')
+            urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
+            st.session_state.form_data['urgency_flag'] = st.selectbox(
+                "Urgent Request",
+                options=urgency_options,
+                index=urgency_index
+            )
+
         with col2:
-            # --- PATCH: Safe selectbox index fallback for all relevant fields ---
             # Documentation Complete
             doc_options = ['Y', 'N']
             current_doc = st.session_state.form_data.get('documentation_complete')
@@ -929,13 +933,18 @@ if selected == "Predict":
                 options=doc_options,
                 index=doc_index
             )
+
+            # Prior Denials
+            prior_denials_val = st.session_state.form_data.get('prior_denials')
+            if prior_denials_val is None or not (0 <= prior_denials_val <= 10):
+                prior_denials_val = 0
             st.session_state.form_data['prior_denials'] = st.number_input(
-                "Prior Denials", 
-                min_value=0, 
-                max_value=10, 
-                value=st.session_state.form_data['prior_denials']
+                "Prior Denials",
+                min_value=0,
+                max_value=10,
+                value=prior_denials_val
             )
-            # --- PATCH: Safe selectbox index fallback for all relevant fields ---
+
             # Region
             region_options = ['Midwest', 'Northeast', 'South', 'West']
             current_region = st.session_state.form_data.get('region')
@@ -945,6 +954,7 @@ if selected == "Predict":
                 options=region_options,
                 index=region_index
             )
+
         input_code = st.session_state.form_data['diagnosis_code'].strip().upper()
         input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
         if input_code:
