@@ -21,6 +21,7 @@ from streamlit_extras.metric_cards import style_metric_cards
 import streamlit.components.v1 as components
 import shap
 from collections import defaultdict
+import os
 
 # Add after other global variables
 DEBUG_MODE = False  # Set to True only during local testing
@@ -901,17 +902,24 @@ if selected == "Predict":
             col1, col2 = st.columns(2)
             with col1:
                 # Insurance Payer
-                payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
-                payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
-                payer_options = [p for p in payer_options if p not in ['payer', '']]
-                current_payer = st.session_state.form_data.get('payer')
-                payer_index = payer_options.index(current_payer) if current_payer in payer_options else 0
-                st.session_state.form_data['payer'] = st.selectbox(
-                    "Insurance Payer",
-                    options=payer_options,
-                    index=payer_index
-                )
-                st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
+                try:
+                    if not os.path.exists('synthetic_pa_dataset_v2.csv'):
+                        st.error("❌ Required data file 'synthetic_pa_dataset_v2.csv' is missing. Please ensure this file is present in the repository.")
+                        st.stop()
+                    payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
+                    payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
+                    payer_options = [p for p in payer_options if p not in ['payer', '']]
+                    current_payer = st.session_state.form_data.get('payer')
+                    payer_index = payer_options.index(current_payer) if current_payer in payer_options else 0
+                    st.session_state.form_data['payer'] = st.selectbox(
+                        "Insurance Payer",
+                        options=payer_options,
+                        index=payer_index
+                    )
+                    st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
+                except Exception as e:
+                    st.error(f"❌ Error loading payer data: {e}")
+                    st.stop()
 
                 # Urgent Request
                 urgency_options = ['Y', 'N']
