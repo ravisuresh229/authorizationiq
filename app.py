@@ -801,7 +801,7 @@ if selected == "Predict":
             # Updated gender dropdown with placeholder
             gender_options = ['Select Gender', 'M', 'F']
             current_gender = st.session_state.form_data['patient_gender']
-            gender_index = 0 if current_gender is None else gender_options.index(current_gender)
+            gender_index = gender_options.index(current_gender) if current_gender in gender_options else 0
             st.session_state.form_data['patient_gender'] = st.selectbox(
                 "Patient Gender", 
                 options=gender_options,
@@ -838,7 +838,7 @@ if selected == "Predict":
             # Updated provider specialty dropdown with placeholder
             specialty_options = ['Select Provider Specialty'] + valid_specialties
             current_specialty = st.session_state.form_data['provider_specialty']
-            specialty_index = 0 if current_specialty is None else specialty_options.index(current_specialty)
+            specialty_index = specialty_options.index(current_specialty) if current_specialty in specialty_options else 0
             st.session_state.form_data['provider_specialty'] = st.selectbox(
                 "Provider Specialty",
                 options=specialty_options,
@@ -905,24 +905,28 @@ if selected == "Predict":
                     payer_options,
                     index=payer_options.index(st.session_state.form_data['payer']) if st.session_state.form_data['payer'] in payer_options else 0
                 )
+                # --- PATCH: Safe selectbox index fallback for all relevant fields ---
+                # Urgency Flag
                 urgency_options = ['Y', 'N']
-                current_urgency = st.session_state.form_data['urgency_flag']
+                current_urgency = st.session_state.form_data.get('urgency_flag')
                 urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
                 st.session_state.form_data['urgency_flag'] = st.selectbox(
-                    "Urgent Request", 
-                    urgency_options,
+                    "Urgent Request",
+                    options=urgency_options,
                     index=urgency_index
                 )
             except Exception as e:
                 st.error(f"❌ Streamlit Cloud layout error: {e}")
                 st.stop()
         with col2:
+            # --- PATCH: Safe selectbox index fallback for all relevant fields ---
+            # Documentation Complete
             doc_options = ['Y', 'N']
-            current_doc = st.session_state.form_data['documentation_complete']
+            current_doc = st.session_state.form_data.get('documentation_complete')
             doc_index = doc_options.index(current_doc) if current_doc in doc_options else 0
             st.session_state.form_data['documentation_complete'] = st.selectbox(
-                "Documentation Complete", 
-                doc_options,
+                "Documentation Complete",
+                options=doc_options,
                 index=doc_index
             )
             st.session_state.form_data['prior_denials'] = st.number_input(
@@ -931,12 +935,14 @@ if selected == "Predict":
                 max_value=10, 
                 value=st.session_state.form_data['prior_denials']
             )
+            # --- PATCH: Safe selectbox index fallback for all relevant fields ---
+            # Region
             region_options = ['Midwest', 'Northeast', 'South', 'West']
-            current_region = st.session_state.form_data['region']
+            current_region = st.session_state.form_data.get('region')
             region_index = region_options.index(current_region) if current_region in region_options else 0
             st.session_state.form_data['region'] = st.selectbox(
-                "Region", 
-                region_options,
+                "Region",
+                options=region_options,
                 index=region_index
             )
         input_code = st.session_state.form_data['diagnosis_code'].strip().upper()
