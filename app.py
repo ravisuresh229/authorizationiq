@@ -789,110 +789,106 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
-        # Main layout try/except for Step 1
-        try:
-            col1, col2 = st.columns(2)
-            with col1:
-                # Patient Age
-                age_val = st.session_state.form_data.get('patient_age')
-                if age_val is None or not isinstance(age_val, int) or not (18 <= age_val <= 90):
-                    age_val = 18
-                st.session_state.form_data['patient_age'] = st.number_input(
-                    "Patient Age",
-                    min_value=18,
-                    max_value=90,
-                    value=age_val,
-                    help="Enter patient age between 18 and 90"
-                )
-
-                # Patient Gender
-                patient_gender_options = ['Select Gender', 'M', 'F']
-                current_gender = st.session_state.form_data.get('patient_gender')
-                gender_index = patient_gender_options.index(current_gender) if current_gender in patient_gender_options else 0
-                st.session_state.form_data['patient_gender'] = st.selectbox(
-                    "Patient Gender",
-                    options=patient_gender_options,
-                    index=gender_index
-                )
-                if st.session_state.form_data['patient_gender'] == 'Select Gender':
-                    st.warning("⚠️ Please select a valid gender.")
-
-                # Procedure Code
-                proc_code_val = st.session_state.form_data.get('procedure_code')
-                if proc_code_val is None:
-                    proc_code_val = ''
-                st.session_state.form_data['procedure_code'] = st.text_input(
-                    "Procedure Code (enter CPT code):",
-                    value=proc_code_val,
-                    placeholder="Enter a valid CPT code",
-                    help="Validated against expanded CPT code set (8,000+ codes)"
-                )
-                input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
-                if input_proc_code:
-                    if input_proc_code not in valid_cpt_codes:
-                        st.warning(f"⚠️ The procedure code '{input_proc_code}' is not a valid CPT code. Please correct it before proceeding.")
-                    else:
-                        st.success(f"✅ Procedure code '{input_proc_code}' is valid.")
-
-            with col2:
-                # Diagnosis Code
-                diag_code_val = st.session_state.form_data.get('diagnosis_code')
-                if diag_code_val is None:
-                    diag_code_val = ''
-                st.session_state.form_data['diagnosis_code'] = st.text_input(
-                    "Diagnosis Code",
-                    value=diag_code_val,
-                    placeholder="Enter a valid ICD-10 code",
-                    max_chars=10,
-                    help="Validated against expanded ICD-10 code set (74,000+ codes)"
-                )
-
-                # Provider Specialty
-                provider_specialty_options = ['Select Provider Specialty'] + valid_specialties
-                current_specialty = st.session_state.form_data.get('provider_specialty')
-                specialty_index = provider_specialty_options.index(current_specialty) if current_specialty in provider_specialty_options else 0
-                st.session_state.form_data['provider_specialty'] = st.selectbox(
-                    "Provider Specialty",
-                    options=provider_specialty_options,
-                    index=specialty_index
-                )
-                if st.session_state.form_data['provider_specialty'] == 'Select Provider Specialty':
-                    st.warning("⚠️ Please select a valid provider specialty.")
-
-                input_diag_code = st.session_state.form_data['diagnosis_code'].strip().upper()
-                if input_diag_code:
-                    if input_diag_code not in valid_icd10_codes:
-                        st.warning(f"⚠️ The diagnosis code '{input_diag_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
-                    else:
-                        st.success(f"✅ Diagnosis code '{input_diag_code}' is valid.")
-            except Exception as e:
-                st.error(f"❌ Layout Error: {e}")
-                st.stop()
-
-            # Only enable Next Step if all required fields are valid
-            codes_valid = (
-                input_proc_code in valid_cpt_codes and
-                input_diag_code in valid_icd10_codes and
-                st.session_state.form_data['patient_gender'] in ['M', 'F'] and
-                st.session_state.form_data['provider_specialty'] in valid_specialties
+        # Main layout for Step 1
+        col1, col2 = st.columns(2)
+        with col1:
+            # Patient Age
+            age_val = st.session_state.form_data.get('patient_age')
+            if age_val is None or not isinstance(age_val, int) or not (18 <= age_val <= 90):
+                age_val = 18
+            st.session_state.form_data['patient_age'] = st.number_input(
+                "Patient Age",
+                min_value=18,
+                max_value=90,
+                value=age_val,
+                help="Enter patient age between 18 and 90"
             )
-            
-            if st.button("Next Step", key="next_step_1"):
-                if codes_valid:
-                    st.session_state.step = 2
-                    st.rerun()
+
+            # Patient Gender
+            patient_gender_options = ['Select Gender', 'M', 'F']
+            current_gender = st.session_state.form_data.get('patient_gender')
+            gender_index = patient_gender_options.index(current_gender) if current_gender in patient_gender_options else 0
+            st.session_state.form_data['patient_gender'] = st.selectbox(
+                "Patient Gender",
+                options=patient_gender_options,
+                index=gender_index
+            )
+            if st.session_state.form_data['patient_gender'] == 'Select Gender':
+                st.warning("⚠️ Please select a valid gender.")
+
+            # Procedure Code
+            proc_code_val = st.session_state.form_data.get('procedure_code')
+            if proc_code_val is None:
+                proc_code_val = ''
+            st.session_state.form_data['procedure_code'] = st.text_input(
+                "Procedure Code (enter CPT code):",
+                value=proc_code_val,
+                placeholder="Enter a valid CPT code",
+                help="Validated against expanded CPT code set (8,000+ codes)"
+            )
+            input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
+            if input_proc_code:
+                if input_proc_code not in valid_cpt_codes:
+                    st.warning(f"⚠️ The procedure code '{input_proc_code}' is not a valid CPT code. Please correct it before proceeding.")
                 else:
-                    error_messages = []
-                    if not input_proc_code or input_proc_code not in valid_cpt_codes:
-                        error_messages.append("Please enter a valid procedure code")
-                    if not input_diag_code or input_diag_code not in valid_icd10_codes:
-                        error_messages.append("Please enter a valid diagnosis code")
-                    if st.session_state.form_data['patient_gender'] not in ['M', 'F']:
-                        error_messages.append("Please select a valid gender")
-                    if st.session_state.form_data['provider_specialty'] not in valid_specialties:
-                        error_messages.append("Please select a valid provider specialty")
-                    
-                    st.error("⚠️ " + "\n".join(error_messages))
+                    st.success(f"✅ Procedure code '{input_proc_code}' is valid.")
+
+        with col2:
+            # Diagnosis Code
+            diag_code_val = st.session_state.form_data.get('diagnosis_code')
+            if diag_code_val is None:
+                diag_code_val = ''
+            st.session_state.form_data['diagnosis_code'] = st.text_input(
+                "Diagnosis Code",
+                value=diag_code_val,
+                placeholder="Enter a valid ICD-10 code",
+                max_chars=10,
+                help="Validated against expanded ICD-10 code set (74,000+ codes)"
+            )
+
+            # Provider Specialty
+            provider_specialty_options = ['Select Provider Specialty'] + valid_specialties
+            current_specialty = st.session_state.form_data.get('provider_specialty')
+            specialty_index = provider_specialty_options.index(current_specialty) if current_specialty in provider_specialty_options else 0
+            st.session_state.form_data['provider_specialty'] = st.selectbox(
+                "Provider Specialty",
+                options=provider_specialty_options,
+                index=specialty_index
+            )
+            if st.session_state.form_data['provider_specialty'] == 'Select Provider Specialty':
+                st.warning("⚠️ Please select a valid provider specialty.")
+
+            input_diag_code = st.session_state.form_data['diagnosis_code'].strip().upper()
+            if input_diag_code:
+                if input_diag_code not in valid_icd10_codes:
+                    st.warning(f"⚠️ The diagnosis code '{input_diag_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
+                else:
+                    st.success(f"✅ Diagnosis code '{input_diag_code}' is valid.")
+
+        # Only enable Next Step if all required fields are valid
+        codes_valid = (
+            input_proc_code in valid_cpt_codes and
+            input_diag_code in valid_icd10_codes and
+            st.session_state.form_data['patient_gender'] in ['M', 'F'] and
+            st.session_state.form_data['provider_specialty'] in valid_specialties
+        )
+        
+        if st.button("Next Step", key="next_step_1"):
+            if codes_valid:
+                st.session_state.step = 2
+                st.rerun()
+            else:
+                error_messages = []
+                if not input_proc_code or input_proc_code not in valid_cpt_codes:
+                    error_messages.append("Please enter a valid procedure code")
+                if not input_diag_code or input_diag_code not in valid_icd10_codes:
+                    error_messages.append("Please enter a valid diagnosis code")
+                if st.session_state.form_data['patient_gender'] not in ['M', 'F']:
+                    error_messages.append("Please select a valid gender")
+                if st.session_state.form_data['provider_specialty'] not in valid_specialties:
+                    error_messages.append("Please select a valid provider specialty")
+                
+                st.error("⚠️ " + "\n".join(error_messages))
     
     # Step 2: Request Details
     elif st.session_state.step == 2:
@@ -902,240 +898,237 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
-        # Main layout try/except for Step 2
-        try:
-            col1, col2 = st.columns(2)
-            with col1:
-                # Insurance Payer
-                try:
-                    if not os.path.exists('synthetic_pa_dataset_v2.csv'):
-                        st.error("❌ Required data file 'synthetic_pa_dataset_v2.csv' is missing. Please ensure this file is present in the repository.")
-                        st.stop()
-                    payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
-                    payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
-                    payer_options = [p for p in payer_options if p not in ['payer', '']]
-                    current_payer = st.session_state.form_data.get('payer')
-                    payer_index = payer_options.index(current_payer) if current_payer in payer_options else 0
-                    st.session_state.form_data['payer'] = st.selectbox(
-                        "Insurance Payer",
-                        options=payer_options,
-                        index=payer_index
-                    )
-                    st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
-                except Exception as e:
-                    st.error(f"❌ Error loading payer data: {e}")
-                    st.stop()
-
-                # Urgent Request
-                urgency_options = ['Y', 'N']
-                current_urgency = st.session_state.form_data.get('urgency_flag')
-                urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
-                st.session_state.form_data['urgency_flag'] = st.selectbox(
-                    "Urgent Request",
-                    options=urgency_options,
-                    index=urgency_index
-                )
-
-            with col2:
-                # Documentation Complete
-                doc_options = ['Y', 'N']
-                current_doc = st.session_state.form_data.get('documentation_complete')
-                doc_index = doc_options.index(current_doc) if current_doc in doc_options else 0
-                st.session_state.form_data['documentation_complete'] = st.selectbox(
-                    "Documentation Complete",
-                    options=doc_options,
-                    index=doc_index
-                )
-
-                # Prior Denials
-                prior_denials_val = st.session_state.form_data.get('prior_denials')
-                if prior_denials_val is None or not isinstance(prior_denials_val, int) or not (0 <= prior_denials_val <= 10):
-                    prior_denials_val = 0
-                st.session_state.form_data['prior_denials'] = st.number_input(
-                    "Prior Denials",
-                    min_value=0,
-                    max_value=10,
-                    value=prior_denials_val
-                )
-
-                # Region
-                region_options = ['Midwest', 'Northeast', 'South', 'West']
-                current_region = st.session_state.form_data.get('region')
-                region_index = region_options.index(current_region) if current_region in region_options else 0
-                st.session_state.form_data['region'] = st.selectbox(
-                    "Region",
-                    options=region_options,
-                    index=region_index
-                )
-
-            input_code = st.session_state.form_data['diagnosis_code'].strip().upper()
-            input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
-            if input_code:
-                if input_code not in valid_icd10_codes:
-                    st.warning(f"⚠️ The diagnosis code '{input_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
-                else:
-                    st.success(f"✅ Diagnosis code '{input_code}' is valid.")
-
+        # Main layout for Step 2
+        col1, col2 = st.columns(2)
+        with col1:
+            # Insurance Payer
             try:
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    if st.button("Back", key="back_step_2"):
-                        st.session_state.step = 1
-                        st.rerun()
-                with col2:
-                    if st.button("Predict Approval", key="predict_button"):
-                        # Block prediction if either code is invalid
-                        if input_proc_code not in valid_cpt_codes:
-                            st.error("Prediction blocked → procedure code is invalid.")
-                        elif input_code not in valid_icd10_codes:
-                            st.error("Prediction blocked → diagnosis code is invalid.")
+                if not os.path.exists('synthetic_pa_dataset_v2.csv'):
+                    st.error("❌ Required data file 'synthetic_pa_dataset_v2.csv' is missing. Please ensure this file is present in the repository.")
+                    st.stop()
+                payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
+                payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
+                payer_options = [p for p in payer_options if p not in ['payer', '']]
+                current_payer = st.session_state.form_data.get('payer')
+                payer_index = payer_options.index(current_payer) if current_payer in payer_options else 0
+                st.session_state.form_data['payer'] = st.selectbox(
+                    "Insurance Payer",
+                    options=payer_options,
+                    index=payer_index
+                )
+                st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
+            except Exception as e:
+                st.error(f"❌ Error loading payer data: {e}")
+                st.stop()
+
+            # Urgent Request
+            urgency_options = ['Y', 'N']
+            current_urgency = st.session_state.form_data.get('urgency_flag')
+            urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
+            st.session_state.form_data['urgency_flag'] = st.selectbox(
+                "Urgent Request",
+                options=urgency_options,
+                index=urgency_index
+            )
+
+        with col2:
+            # Documentation Complete
+            doc_options = ['Y', 'N']
+            current_doc = st.session_state.form_data.get('documentation_complete')
+            doc_index = doc_options.index(current_doc) if current_doc in doc_options else 0
+            st.session_state.form_data['documentation_complete'] = st.selectbox(
+                "Documentation Complete",
+                options=doc_options,
+                index=doc_index
+            )
+
+            # Prior Denials
+            prior_denials_val = st.session_state.form_data.get('prior_denials')
+            if prior_denials_val is None or not isinstance(prior_denials_val, int) or not (0 <= prior_denials_val <= 10):
+                prior_denials_val = 0
+            st.session_state.form_data['prior_denials'] = st.number_input(
+                "Prior Denials",
+                min_value=0,
+                max_value=10,
+                value=prior_denials_val
+            )
+
+            # Region
+            region_options = ['Midwest', 'Northeast', 'South', 'West']
+            current_region = st.session_state.form_data.get('region')
+            region_index = region_options.index(current_region) if current_region in region_options else 0
+            st.session_state.form_data['region'] = st.selectbox(
+                "Region",
+                options=region_options,
+                index=region_index
+            )
+
+        input_code = st.session_state.form_data['diagnosis_code'].strip().upper()
+        input_proc_code = st.session_state.form_data['procedure_code'].strip().upper()
+        if input_code:
+            if input_code not in valid_icd10_codes:
+                st.warning(f"⚠️ The diagnosis code '{input_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
+            else:
+                st.success(f"✅ Diagnosis code '{input_code}' is valid.")
+
+        # Back/Predict buttons layout
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("Back", key="back_step_2"):
+                st.session_state.step = 1
+                st.rerun()
+        with col2:
+            if st.button("Predict Approval", key="predict_button"):
+                # Block prediction if either code is invalid
+                if input_proc_code not in valid_cpt_codes:
+                    st.error("Prediction blocked → procedure code is invalid.")
+                elif input_code not in valid_icd10_codes:
+                    st.error("Prediction blocked → diagnosis code is invalid.")
+                else:
+                    # Create input DataFrame using session state data
+                    input_data = pd.DataFrame({
+                        'patient_age': [st.session_state.form_data['patient_age']],
+                        'patient_gender': [st.session_state.form_data['patient_gender']],
+                        'procedure_code': [st.session_state.form_data['procedure_code']],
+                        'diagnosis_code': [st.session_state.form_data['diagnosis_code']],
+                        'provider_specialty': [st.session_state.form_data['provider_specialty']],
+                        'payer': [st.session_state.form_data['payer']],
+                        'urgency_flag': [st.session_state.form_data['urgency_flag']],
+                        'documentation_complete': [st.session_state.form_data['documentation_complete']],
+                        'prior_denials_provider': [st.session_state.form_data['prior_denials']],
+                        'region': [st.session_state.form_data['region']]
+                    })
+
+                    # Make prediction
+                    prediction_result = call_backend_api(input_data.iloc[0].to_dict())
+                    
+                    if prediction_result:
+                        st.success("✅ Prediction received from API.")
+                        
+                        # Extract and format values from API response
+                        approval = prediction_result.get("approval_prediction", 0)
+                        probability = float(prediction_result.get("probability", 0.0))
+                        probability_pct = f"{probability * 100:.1f}%"
+                        status_str = "Approved" if approval == 1 else "Denied"
+                        status_color = "green" if approval == 1 else "red"
+                        status_emoji = "✅" if approval == 1 else "❌"
+
+                        # Debug section (only visible in debug mode)
+                        if DEBUG_MODE:
+                            with st.expander("Advanced Debug View", expanded=False):
+                                st.markdown("### Raw Prediction Data")
+                                st.json(prediction_result)
+                                
+                                st.markdown("### Model Metadata")
+                                st.info(f"Model Version: Updated with expanded ICD-10 (74,000+) and CPT (8,000+) codes (May 2025)")
+                                st.info(f"Last Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+                        # Display Prediction Summary first
+                        st.markdown("### ✅ Prediction Summary")
+                        st.markdown("---")
+                        
+                        # Debug information
+                        if DEBUG_MODE:
+                            st.write("🔍 Session Keys:", list(st.session_state.keys()))
+                        
+                        try:
+                            # Create columns for status and probability
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                st.markdown(f"**Approval Status**")
+                                st.markdown(f"<span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
+                            with col2:
+                                st.markdown("**Approval Probability**")
+                                st.markdown(f"<span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+                        except Exception as e:
+                            st.error(f"❌ Streamlit Cloud layout error: {e}")
+                            # Fallback display without columns
+                            st.markdown(f"**Approval Status:** <span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
+                            st.markdown(f"**Approval Probability:** <span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+                            st.stop()
+
+                        st.markdown("---")
+                        
+                        # Recommendation logic
+                        if approval == 1 and probability < 0.9:
+                            recommendation = "Consider strengthening documentation or verifying procedure details."
+                        elif approval == 0:
+                            recommendation = "Review contributing features and revise submission as needed."
                         else:
-                            # Create input DataFrame using session state data
-                            input_data = pd.DataFrame({
-                                'patient_age': [st.session_state.form_data['patient_age']],
-                                'patient_gender': [st.session_state.form_data['patient_gender']],
-                                'procedure_code': [st.session_state.form_data['procedure_code']],
-                                'diagnosis_code': [st.session_state.form_data['diagnosis_code']],
-                                'provider_specialty': [st.session_state.form_data['provider_specialty']],
-                                'payer': [st.session_state.form_data['payer']],
-                                'urgency_flag': [st.session_state.form_data['urgency_flag']],
-                                'documentation_complete': [st.session_state.form_data['documentation_complete']],
-                                'prior_denials_provider': [st.session_state.form_data['prior_denials']],
-                                'region': [st.session_state.form_data['region']]
+                            recommendation = "No additional documentation likely needed."
+                        
+                        st.markdown(f"💬 **Recommendation:** {recommendation}")
+                        st.markdown("---")
+
+                        # Add prediction timestamp
+                        st.caption(f"🕒 Prediction generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+                        # SHAP: Use local model to get feature importance
+                        model, preprocessor, classifier = load_model_and_components()
+                        background_data = load_shap_background()
+                        explanations, shap_vals, feature_names, shap_full = get_local_shap_explanation(
+                            input_df=input_data,
+                            model=model,
+                            preprocessor=preprocessor,
+                            classifier=classifier,
+                            background_df=background_data
+                        )
+
+                        # Display Top Contributing Factors with emoji enhancement
+                        if explanations and isinstance(explanations, list) and any("no explanation" not in str(exp).lower() for exp in explanations):
+                            st.markdown("### 🔬 Top Contributing Factors")
+                            for exp in explanations:
+                                if "↑" in exp:
+                                    icon = "⬆️"
+                                elif "↓" in exp:
+                                    icon = "⬇️"
+                                else:
+                                    icon = "🔹"
+                                st.markdown(f"{icon} **{exp}**")
+                        else:
+                            st.markdown("### 🔬 Top Contributing Factors")
+                            st.markdown("No explanation available.")
+
+                        # Add SHAP bar chart visualization
+                        if shap_vals is not None and feature_names is not None:
+                            # Add chart interpretation guide
+                            st.markdown("""
+                            **How to interpret this chart:**
+                            The bar chart below shows which features had the biggest impact on the approval prediction for this request. 
+                            - Blue bars = features that increased the likelihood of approval.
+                            - Red bars = features that decreased it.
+                            Longer bars indicate stronger influence.
+                            """)
+
+                            # Humanize feature names
+                            human_names = [humanize_feature_name(name) for name in feature_names]
+                            shap_df = pd.DataFrame({
+                                "Feature": human_names,
+                                "SHAP Value": shap_vals
                             })
+                            shap_df["abs_val"] = shap_df["SHAP Value"].abs()
+                            shap_df = shap_df.sort_values(by="abs_val", ascending=False).head(5)
 
-                            # Make prediction
-                            prediction_result = call_backend_api(input_data.iloc[0].to_dict())
-                            
-                            if prediction_result:
-                                st.success("✅ Prediction received from API.")
-                                
-                                # Extract and format values from API response
-                                approval = prediction_result.get("approval_prediction", 0)
-                                probability = float(prediction_result.get("probability", 0.0))
-                                probability_pct = f"{probability * 100:.1f}%"
-                                status_str = "Approved" if approval == 1 else "Denied"
-                                status_color = "green" if approval == 1 else "red"
-                                status_emoji = "✅" if approval == 1 else "❌"
+                            fig = px.bar(
+                                shap_df, 
+                                x="SHAP Value", 
+                                y="Feature", 
+                                orientation="h",
+                                title="Top SHAP Feature Contributions",
+                                color="SHAP Value",
+                                color_continuous_scale="RdBu",
+                                template="plotly_white",
+                                height=300
+                            )
+                            fig.update_layout(
+                                margin=dict(l=10, r=10, t=40, b=10),
+                                xaxis_title="Impact on Approval Likelihood",
+                                yaxis_title=None,
+                                font=dict(size=14),
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
 
-                                # Debug section (only visible in debug mode)
-                                if DEBUG_MODE:
-                                    with st.expander("Advanced Debug View", expanded=False):
-                                        st.markdown("### Raw Prediction Data")
-                                        st.json(prediction_result)
-                                        
-                                        st.markdown("### Model Metadata")
-                                        st.info(f"Model Version: Updated with expanded ICD-10 (74,000+) and CPT (8,000+) codes (May 2025)")
-                                        st.info(f"Last Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-
-                                # Display Prediction Summary first
-                                st.markdown("### ✅ Prediction Summary")
-                                st.markdown("---")
-                                
-                                # Debug information
-                                if DEBUG_MODE:
-                                    st.write("🔍 Session Keys:", list(st.session_state.keys()))
-                                
-                                try:
-                                    # Create columns for status and probability
-                                    col1, col2 = st.columns([1, 1])
-                                    with col1:
-                                        st.markdown(f"**Approval Status**")
-                                        st.markdown(f"<span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
-                                    with col2:
-                                        st.markdown("**Approval Probability**")
-                                        st.markdown(f"<span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
-                                except Exception as e:
-                                    st.error(f"❌ Streamlit Cloud layout error: {e}")
-                                    # Fallback display without columns
-                                    st.markdown(f"**Approval Status:** <span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
-                                    st.markdown(f"**Approval Probability:** <span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
-                                    st.stop()
-
-                                st.markdown("---")
-                                
-                                # Recommendation logic
-                                if approval == 1 and probability < 0.9:
-                                    recommendation = "Consider strengthening documentation or verifying procedure details."
-                                elif approval == 0:
-                                    recommendation = "Review contributing features and revise submission as needed."
-                                else:
-                                    recommendation = "No additional documentation likely needed."
-                                
-                                st.markdown(f"💬 **Recommendation:** {recommendation}")
-                                st.markdown("---")
-
-                                # Add prediction timestamp
-                                st.caption(f"🕒 Prediction generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-
-                                # SHAP: Use local model to get feature importance
-                                model, preprocessor, classifier = load_model_and_components()
-                                background_data = load_shap_background()
-                                explanations, shap_vals, feature_names, shap_full = get_local_shap_explanation(
-                                    input_df=input_data,
-                                    model=model,
-                                    preprocessor=preprocessor,
-                                    classifier=classifier,
-                                    background_df=background_data
-                                )
-
-                                # Display Top Contributing Factors with emoji enhancement
-                                if explanations and isinstance(explanations, list) and any("no explanation" not in str(exp).lower() for exp in explanations):
-                                    st.markdown("### 🔬 Top Contributing Factors")
-                                    for exp in explanations:
-                                        if "↑" in exp:
-                                            icon = "⬆️"
-                                        elif "↓" in exp:
-                                            icon = "⬇️"
-                                        else:
-                                            icon = "🔹"
-                                        st.markdown(f"{icon} **{exp}**")
-                                else:
-                                    st.markdown("### 🔬 Top Contributing Factors")
-                                    st.markdown("No explanation available.")
-
-                                # Add SHAP bar chart visualization
-                                if shap_vals is not None and feature_names is not None:
-                                    # Add chart interpretation guide
-                                    st.markdown("""
-                                    **How to interpret this chart:**
-                                    The bar chart below shows which features had the biggest impact on the approval prediction for this request. 
-                                    - Blue bars = features that increased the likelihood of approval.
-                                    - Red bars = features that decreased it.
-                                    Longer bars indicate stronger influence.
-                                    """)
-
-                                    # Humanize feature names
-                                    human_names = [humanize_feature_name(name) for name in feature_names]
-                                    shap_df = pd.DataFrame({
-                                        "Feature": human_names,
-                                        "SHAP Value": shap_vals
-                                    })
-                                    shap_df["abs_val"] = shap_df["SHAP Value"].abs()
-                                    shap_df = shap_df.sort_values(by="abs_val", ascending=False).head(5)
-
-                                    fig = px.bar(
-                                        shap_df, 
-                                        x="SHAP Value", 
-                                        y="Feature", 
-                                        orientation="h",
-                                        title="Top SHAP Feature Contributions",
-                                        color="SHAP Value",
-                                        color_continuous_scale="RdBu",
-                                        template="plotly_white",
-                                        height=300
-                                    )
-                                    fig.update_layout(
-                                        margin=dict(l=10, r=10, t=40, b=10),
-                                        xaxis_title="Impact on Approval Likelihood",
-                                        yaxis_title=None,
-                                        font=dict(size=14),
-                                    )
-                                    st.plotly_chart(fig, use_container_width=True)
-
-                                st.markdown("---")
-                            
-      
+                        st.markdown("---")
 
     # Footer
     st.markdown("""
