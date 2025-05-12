@@ -789,6 +789,7 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
+        # Main layout try/except for Step 1
         try:
             col1, col2 = st.columns(2)
             with col1:
@@ -864,31 +865,34 @@ if selected == "Predict":
                         st.warning(f"⚠️ The diagnosis code '{input_diag_code}' is not a valid ICD-10 code. Please correct it before proceeding.")
                     else:
                         st.success(f"✅ Diagnosis code '{input_diag_code}' is valid.")
-        
-        # Only enable Next Step if all required fields are valid
-        codes_valid = (
-            input_proc_code in valid_cpt_codes and
-            input_diag_code in valid_icd10_codes and
-            st.session_state.form_data['patient_gender'] in ['M', 'F'] and
-            st.session_state.form_data['provider_specialty'] in valid_specialties
-        )
-        
-        if st.button("Next Step", key="next_step_1"):
-            if codes_valid:
-                st.session_state.step = 2
-                st.rerun()
-            else:
-                error_messages = []
-                if not input_proc_code or input_proc_code not in valid_cpt_codes:
-                    error_messages.append("Please enter a valid procedure code")
-                if not input_diag_code or input_diag_code not in valid_icd10_codes:
-                    error_messages.append("Please enter a valid diagnosis code")
-                if st.session_state.form_data['patient_gender'] not in ['M', 'F']:
-                    error_messages.append("Please select a valid gender")
-                if st.session_state.form_data['provider_specialty'] not in valid_specialties:
-                    error_messages.append("Please select a valid provider specialty")
-                
-                st.error("⚠️ " + "\n".join(error_messages))
+            except Exception as e:
+                st.error(f"❌ Layout Error: {e}")
+                st.stop()
+
+            # Only enable Next Step if all required fields are valid
+            codes_valid = (
+                input_proc_code in valid_cpt_codes and
+                input_diag_code in valid_icd10_codes and
+                st.session_state.form_data['patient_gender'] in ['M', 'F'] and
+                st.session_state.form_data['provider_specialty'] in valid_specialties
+            )
+            
+            if st.button("Next Step", key="next_step_1"):
+                if codes_valid:
+                    st.session_state.step = 2
+                    st.rerun()
+                else:
+                    error_messages = []
+                    if not input_proc_code or input_proc_code not in valid_cpt_codes:
+                        error_messages.append("Please enter a valid procedure code")
+                    if not input_diag_code or input_diag_code not in valid_icd10_codes:
+                        error_messages.append("Please enter a valid diagnosis code")
+                    if st.session_state.form_data['patient_gender'] not in ['M', 'F']:
+                        error_messages.append("Please select a valid gender")
+                    if st.session_state.form_data['provider_specialty'] not in valid_specialties:
+                        error_messages.append("Please select a valid provider specialty")
+                    
+                    st.error("⚠️ " + "\n".join(error_messages))
     
     # Step 2: Request Details
     elif st.session_state.step == 2:
@@ -898,6 +902,7 @@ if selected == "Predict":
             </div>
         """, unsafe_allow_html=True)
         
+        # Main layout try/except for Step 2
         try:
             col1, col2 = st.columns(2)
             with col1:
@@ -1129,9 +1134,8 @@ if selected == "Predict":
                                     st.plotly_chart(fig, use_container_width=True)
 
                                 st.markdown("---")
-        except Exception as e:
-            st.error(f"❌ Layout Error: {e}")
-            st.stop()
+                            
+      
 
     # Footer
     st.markdown("""
