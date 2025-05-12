@@ -22,6 +22,44 @@ import streamlit.components.v1 as components
 import shap
 from collections import defaultdict
 
+# Add after other global variables
+DEBUG_MODE = False  # Set to True only during local testing
+
+def humanize_feature_name(raw_name):
+    raw_name = raw_name.replace("cat__", "").replace("num__", "")
+    parts = raw_name.split("_")
+    
+    # Specific mappings
+    if "provider" in parts:
+        return f"Provider Specialty = {' '.join(parts[2:])}"
+    if "documentation" in parts:
+        return f"Documentation = {parts[-1]}"
+    if "urgency" in parts:
+        return f"Urgency Flag = {parts[-1]}"
+    if "region" in parts:
+        return f"Region = {parts[-1]}"
+    if "procedure" in parts:
+        return f"Procedure Code = {parts[-1]}"
+    if "diagnosis" in parts:
+        return f"Diagnosis Code = {parts[-1]}"
+    if "patient" in parts and "age" in parts:
+        return "Patient Age"
+    if "gender" in parts:
+        return f"Gender = {parts[-1]}"
+    
+    # Fallback
+    return raw_name.replace("_", " ").title()
+
+@st.cache_data
+def load_shap_background():
+    import pandas as pd
+    df = pd.read_csv('synthetic_pa_dataset.csv')
+    # Remove outcome/target column if present
+    for col in ['approval_prediction', 'target', 'label', 'outcome']:
+        if col in df.columns:
+            df = df.drop(columns=[col])
+    return df
+
 def process_cpt_codes():
     """
     Process the CPT codes from cpt4.csv and save them to cpt_codes.csv.
@@ -193,20 +231,20 @@ def create_gauge_chart(probability):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=probability,
-        number={'suffix': '%'},  # Add percentage sign
+        number={'suffix': '%', 'font': {'size': 28}},  # Increased font size
         domain={'x': [0, 1], 'y': [0, 1]},
         gauge={
             'axis': {'range': [0, 100]},
             'bar': {'color': "#38b2ac"},
             'steps': [
                 {'range': [0, 30], 'color': "#fc8181"},
-                {'range': [30, 70], 'color': "#f6ad55"},
-                {'range': [70, 100], 'color': "#68d391"}
+                {'range': [30, 60], 'color': "#f6ad55"},
+                {'range': [60, 100], 'color': "#68d391"}  # Adjusted green zone
             ],
             'threshold': {
                 'line': {'color': "red", 'width': 4},
                 'thickness': 0.75,
-                'value': 70
+                'value': 60  # Adjusted threshold
             }
         },
         title={'text': ''}
@@ -214,79 +252,157 @@ def create_gauge_chart(probability):
     fig.update_layout(
         title_text='',
         height=300,
+        width=500,  # Increased width
         margin=dict(l=10, r=10, t=40, b=10),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#2c5282")
+        font=dict(color="#2c5282", size=14)  # Increased base font size
     )
     return fig
 
 def get_feature_importance(model, input_data, background_data=None):
     """
-    Calculate SHAP values locally using the loaded model
+    Calculate SHAP values locally using the loaded model and return a DataFrame
+    with human-readable top features and their impact.
     """
     try:
-        # Convert input to DataFrame if needed
+        # Ensure input is DataFrame
         if not isinstance(input_data, pd.DataFrame):
             input_df = pd.DataFrame([input_data])
         else:
             input_df = input_data.copy()
 
-        # Use input data as background if none provided
+        # Use input as background if none provided
         if background_data is None:
             background_data = input_df.copy()
 
-        # Initialize SHAP explainer
+        # SHAP explainer
         explainer = shap.Explainer(
             model.predict_proba,
             background_data,
             algorithm="permutation",
             feature_names=input_df.columns
         )
-
-        # Calculate SHAP values
         shap_values = explainer(input_df)
+        shap_vals = shap_values.values[0]
 
-        # Get top 5 features by absolute SHAP value
-        top_idx = np.argsort(-np.abs(shap_values.values[0]))[:5]
-        top_features = [
-            {
-                "feature": input_df.columns[i],
-                "shap_value": float(shap_values.values[0][i]),
-                "impact": "positive" if shap_values.values[0][i] > 0 else "negative"
-            }
-            for i in top_idx
-        ]
-
-        return top_features
+        # Top 3 features by absolute SHAP value
+        top_idx = np.argsort(-np.abs(shap_vals))[:3]
+        features = []
+        for i in top_idx:
+            fname = input_df.columns[i]
+            fval = input_df.iloc[0, i]
+            impact = "positive" if shap_vals[i] > 0 else "negative"
+            direction = "↑" if shap_vals[i] > 0 else "↓"
+            # Humanize feature name/value
+            if "provider_specialty" in fname:
+                label = f"Provider Specialty = {fval}"
+            elif "documentation_complete" in fname:
+                label = f"Documentation Complete = {fval}"
+            elif "prior_denials" in fname:
+                label = f"Prior Denials = {fval}"
+            elif "procedure_code" in fname:
+                label = f"Procedure Code = {fval}"
+            elif "diagnosis_code" in fname:
+                label = f"Diagnosis Code = {fval}"
+            else:
+                label = f"{fname.replace('_', ' ').title()} = {fval}"
+            features.append({
+                "Feature": label,
+                "Effect": impact,
+                "Direction": direction,
+                "Importance": abs(shap_vals[i])
+            })
+        df = pd.DataFrame(features)
+        return df, None, shap_vals, None, None
     except Exception as e:
-        print(f"Error calculating SHAP values: {e}")
-        return None
+        st.warning(f"SHAP explanation failed: {e}")
+        return pd.DataFrame(), "No explanation available.", None, None, None
 
-def make_prediction(input_data):
-    """
-    Make prediction and calculate SHAP values locally
-    """
+def get_local_shap_explanation(input_df, model, preprocessor, classifier, background_df):
     try:
-        # Convert input to DataFrame
-        df = pd.DataFrame([input_data])
-        
-        # Make prediction
-        pred = model.predict(df)[0]
-        prob = float(model.predict_proba(df)[0][1])
-        
-        # Calculate SHAP values locally
-        feature_importance = get_feature_importance(model, df)
-        
-        return {
-            "approval_prediction": int(pred),
-            "probability": round(prob, 4),
-            "feature_importance": feature_importance,
-            "status": "success"
-        }
+        # Preprocess input and background
+        X_input = preprocessor.transform(input_df)
+        X_bg = preprocessor.transform(background_df.sample(n=100, random_state=42))
+
+        # Create SHAP explainer
+        explainer = shap.KernelExplainer(classifier.predict_proba, X_bg)
+        shap_values = explainer.shap_values(X_input, nsamples=100)
+
+        print("✅ SHAP raw type:", type(shap_values))
+        print("✅ SHAP raw shape (if list):", [np.array(s).shape for s in shap_values] if isinstance(shap_values, list) else np.array(shap_values).shape)
+
+        try:
+            # Extract SHAP values for class 1 (approval)
+            shap_vals = shap_values[0, :, 1]  # First sample, all features, class 1 (approval)
+            shap_vals = np.array(shap_vals).flatten()
+            feature_names = preprocessor.get_feature_names_out()
+
+            # Filter only one-hot features that are "on" (value = 1) in this input
+            X_input_flat = X_input[0]  # shape: (n_features,)
+            active_indices = [i for i, val in enumerate(X_input_flat) if val == 1]
+
+            # Subset SHAP values and feature names to active only
+            shap_vals = shap_vals[active_indices]
+            feature_names = [feature_names[i] for i in active_indices]
+
+            print("✅ SHAP computed")
+            print("SHAP values:", shap_vals[:5])
+            print("Feature names:", feature_names[:5])
+
+            # Top 3 features by impact
+            top_idx = np.argsort(-np.abs(shap_vals))[:3]
+            explanations = []
+
+            for i in top_idx:
+                fname = str(feature_names[i])
+                direction = '↑ approval' if shap_vals[i] > 0 else '↓ approval'
+
+                try:
+                    if 'provider_specialty' in fname:
+                        val = input_df['provider_specialty'].values[0]
+                        label = f"Provider Specialty = {val}"
+                    elif 'documentation_complete' in fname:
+                        val = input_df['documentation_complete'].values[0]
+                        label = f"Documentation Complete = {val}"
+                    elif 'prior_denials' in fname:
+                        val = input_df['prior_denials_provider'].values[0]
+                        label = f"Prior Denials = {val}"
+                    elif 'procedure_code' in fname:
+                        val = input_df['procedure_code'].values[0]
+                        label = f"Procedure Code = {val}"
+                    elif 'diagnosis_code' in fname:
+                        val = input_df['diagnosis_code'].values[0]
+                        label = f"Diagnosis Code = {val}"
+                    else:
+                        label = fname.replace('cat__', '').replace('_', ' ').title()
+
+                    explanations.append(f"{label} ({direction})")
+                except Exception as e:
+                    print(f"⚠️ Failed to interpret feature '{fname}': {e}")
+                    explanations.append(f"{fname} ({direction})")
+
+            # Deduplicate explanations while preserving order
+            explanations = list(dict.fromkeys(explanations))
+
+            return explanations, shap_vals, feature_names, shap_values
+
+        except Exception as e:
+            print(f"❌ SHAP extraction failed: {e}")
+            return ["No explanation available."], None, None, None
+
     except Exception as e:
-        print(f"Prediction error: {e}")
-        return None
+        print(f"❌ SHAP explanation error: {e}")
+        return ["No explanation available."], None, None, None
+
+@st.cache_resource
+def load_model_and_components():
+    model = load_model_from_s3()
+    if model is not None:
+        preprocessor = model.named_steps['preprocessor']
+        classifier = model.named_steps['classifier']
+        return model, preprocessor, classifier
+    return None, None, None
 
 # Initialize S3 client
 s3 = boto3.client('s3')
@@ -855,240 +971,121 @@ if selected == "Predict":
 
                     # Make prediction
                     prediction_result = call_backend_api(input_data.iloc[0].to_dict())
-
+                    
                     if prediction_result:
                         st.success("✅ Prediction received from API.")
-                        prediction = prediction_result["approval_prediction"]
-                        probability = prediction_result["probability"]
-                        feature_importance = prediction_result.get("feature_importance", [])
+                        
+                        # Extract and format values from API response
+                        approval = prediction_result.get("approval_prediction", 0)
+                        probability = float(prediction_result.get("probability", 0.0))
+                        probability_pct = f"{probability * 100:.1f}%"
+                        status_str = "Approved" if approval == 1 else "Denied"
+                        status_color = "green" if approval == 1 else "red"
+                        status_emoji = "✅" if approval == 1 else "❌"
 
-                        # Display feature importance
-                        st.subheader("Top Influencing Encoded Features")
-                        if feature_importance:
-                            st.dataframe(pd.DataFrame(feature_importance))
+                        # Debug section (only visible in debug mode)
+                        if DEBUG_MODE:
+                            with st.expander("Advanced Debug View", expanded=False):
+                                st.markdown("### Raw Prediction Data")
+                                st.json(prediction_result)
+                                
+                                st.markdown("### Model Metadata")
+                                st.info(f"Model Version: Updated with expanded ICD-10 (74,000+) and CPT (8,000+) codes (May 2025)")
+                                st.info(f"Last Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+                        # Display Prediction Summary first
+                        st.markdown("### ✅ Prediction Summary")
+                        st.markdown("---")
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            st.markdown(f"**Approval Status**")
+                            st.markdown(f"<span style='color:{status_color}; font-size:1.3em; font-weight:600'>{status_emoji} {status_str}</span>", unsafe_allow_html=True)
+                        with col2:
+                            st.markdown("**Approval Probability**")
+                            st.markdown(f"<span style='font-size:1.3em; font-weight:600'>{probability_pct}</span>", unsafe_allow_html=True)
+
+                        st.markdown("---")
                         
-                        # Add explanation about feature importance
-                        st.info("""
-                        ℹ️ **About these features:**
-                        - These are the most influential factors in the model's prediction for this case
-                        - They represent encoded features from the model, not necessarily the exact codes you entered
-                        - The impact shows how much each factor pushed the prediction up or down
-                        """)
-                        
-                        # Add section for specific procedure code impact
-                        st.subheader("Your Procedure Code Impact")
-                        # Find the exact procedure code feature
-                        proc_code_feature = f"procedure_code_{input_proc_code}"
-                        proc_code_impact = None
-                        
-                        # Debug logging
-                        st.caption(f"Debug: Looking for feature: {proc_code_feature}")
-                        st.caption(f"Debug: Available procedure code features: {[f['feature'] for f in feature_importance if f['feature'].startswith('procedure_code_')][:5]}...")
-                        
-                        # Search in feature importance
-                        for f in feature_importance:
-                            if f['feature'].startswith('procedure_code_'):
-                                proc_code_impact = f
-                                break
-                        
-                        if proc_code_impact:
-                            # Create a styled message about the impact
-                            impact_msg = f"""
-                            Your procedure code ({input_proc_code}) had a {proc_code_impact['impact'].capitalize()} impact on the prediction.
-                            Impact strength: {abs(proc_code_impact['shap_value']):.3f}
-                            """
-                            if proc_code_impact['impact'] == 'positive':
-                                st.success(impact_msg)
-                            else:
-                                st.warning(impact_msg)
+                        # Recommendation logic
+                        if approval == 1 and probability < 0.9:
+                            recommendation = "Consider strengthening documentation or verifying procedure details."
+                        elif approval == 0:
+                            recommendation = "Review contributing features and revise submission as needed."
                         else:
-                            st.info(f"""
-                            Your procedure code ({input_proc_code}) had minimal direct impact on this prediction.
-                            This is normal - the model considers many factors beyond just the procedure code.
+                            recommendation = "No additional documentation likely needed."
+                        
+                        st.markdown(f"💬 **Recommendation:** {recommendation}")
+                        st.markdown("---")
+
+                        # Add prediction timestamp
+                        st.caption(f"🕒 Prediction generated at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+                        # SHAP: Use local model to get feature importance
+                        model, preprocessor, classifier = load_model_and_components()
+                        background_data = load_shap_background()
+                        explanations, shap_vals, feature_names, shap_full = get_local_shap_explanation(
+                            input_df=input_data,
+                            model=model,
+                            preprocessor=preprocessor,
+                            classifier=classifier,
+                            background_df=background_data
+                        )
+
+                        # Display Top Contributing Factors with emoji enhancement
+                        if explanations and isinstance(explanations, list) and any("no explanation" not in str(exp).lower() for exp in explanations):
+                            st.markdown("### 🔬 Top Contributing Factors")
+                            for exp in explanations:
+                                if "↑" in exp:
+                                    icon = "⬆️"
+                                elif "↓" in exp:
+                                    icon = "⬇️"
+                                else:
+                                    icon = "🔹"
+                                st.markdown(f"{icon} **{exp}**")
+                        else:
+                            st.markdown("### 🔬 Top Contributing Factors")
+                            st.markdown("No explanation available.")
+
+                        # Add SHAP bar chart visualization
+                        if shap_vals is not None and feature_names is not None:
+                            # Add chart interpretation guide
+                            st.markdown("""
+                            **How to interpret this chart:**
+                            The bar chart below shows which features had the biggest impact on the approval prediction for this request. 
+                            - Blue bars = features that increased the likelihood of approval.
+                            - Red bars = features that decreased it.
+                            Longer bars indicate stronger influence.
                             """)
 
-                        # Dynamic recommendation logic
-                        if feature_importance[0]['feature'].startswith('Provider Specialty'):
-                            if prediction == 0:
-                                dynamic_message = "⚠️ The provider specialty is driving the denial. Consider reviewing for specificity or documentation."
-                            else:
-                                dynamic_message = "✅ The provider specialty was a key approval factor."
-                        elif feature_importance[0]['feature'].startswith('Payer'):
-                            if prediction == 0:
-                                dynamic_message = "⚠️ The insurance payer is driving the denial. Consider peer review or alternative coding."
-                            else:
-                                dynamic_message = "✅ The insurance payer was a key approval factor."
-                        elif feature_importance[0]['feature'].startswith('Diagnosis Code'):
-                            if prediction == 0:
-                                dynamic_message = "⚠️ The diagnosis code is driving the denial. Consider reviewing for specificity or documentation."
-                            else:
-                                dynamic_message = "✅ The diagnosis code was a key approval factor."
-                        else:
-                            if prediction == 0:
-                                dynamic_message = "ℹ️ Other factors are influencing the decision."
-                            else:
-                                dynamic_message = "✅ Other factors contributed positively to the approval."
+                            # Humanize feature names
+                            human_names = [humanize_feature_name(name) for name in feature_names]
+                            shap_df = pd.DataFrame({
+                                "Feature": human_names,
+                                "SHAP Value": shap_vals
+                            })
+                            shap_df["abs_val"] = shap_df["SHAP Value"].abs()
+                            shap_df = shap_df.sort_values(by="abs_val", ascending=False).head(5)
 
-                        st.info(dynamic_message)
-
-                        # Add vertical spacing above the results section
-                        st.markdown("<div style='height:2.5rem;'></div>", unsafe_allow_html=True)
-
-                        # Prediction Results title in its own card
-                        st.markdown("""
-                            <div style="text-align:center; font-size:1.25rem; font-weight:600; margin-bottom:1rem; color:#0f172a;">
-                            Prediction Results
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # Add vertical spacing between title and charts
-                        st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
-
-                        # Side-by-side charts
-                        chart_col1, chart_col2 = st.columns(2, gap="large")
-                        
-                        with chart_col1:
-                            # Gauge Chart with subheader
-                            st.subheader("Predicted Approval Probability")
-                            fig = create_gauge_chart(probability)
-                            st.plotly_chart(fig, use_container_width=True)
-                        
-                        with chart_col2:
-                            # Display narrative explanation
-                            st.info("Understanding Feature Impact")
-                            st.caption("ℹ️ Hover for details", help="SHAP values measure how much each factor pushed the approval probability up or down in this case.")
-                            
-                            # Add note about feature types
-                            st.caption("Note: The model finds provider specialty and diagnosis code to be the most predictive features for prior authorization decisions, based on training data. Other factors may have smaller influence.")
-                            
-                            # Title for feature importance visualization
-                            st.markdown("<div style='font-weight:600; font-size:1.15rem; margin-bottom:0.5rem;'>Top Influencing Factors</div>", unsafe_allow_html=True)
-                            
-                            # Create horizontal bar chart for top 5 features
                             fig = px.bar(
-                                pd.DataFrame(feature_importance),
-                                x='shap_value',
-                                y='feature',
-                                orientation='h',
-                                color='impact',  # Color by effect direction
-                                color_discrete_map={'positive': '#68d391', 'negative': '#fc8181'},
-                                labels={'shap_value': 'Impact on Approval', 'feature': 'Factor'},
-                                height=400,  # Increased height
-                                text='impact'  # Add direction arrows
-                            )
-                            fig.update_layout(
-                                showlegend=True,
-                                legend_title='Effect on Approval',
-                                legend_orientation='v',
-                                legend_y=1,
-                                legend_x=1.02,
-                                margin=dict(l=0, r=40, t=0, b=0),
-                                xaxis_title="Impact on Approval",
-                                yaxis_title="",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                plot_bgcolor="rgba(0,0,0,0)",
-                                font=dict(size=12),  # Reduce overall font size
-                            )
-                            fig.update_xaxes(tickfont=dict(size=11), title_font=dict(size=12))
-                            fig.update_yaxes(tickfont=dict(size=11), title_font=dict(size=12), automargin=True)
-                            fig.update_traces(textposition='outside', cliponaxis=False)
-                            st.plotly_chart(fig, use_container_width=True)
-
-                        # Vertical spacing below charts
-                        st.markdown("<div style='height:1.5rem;'></div>", unsafe_allow_html=True)
-
-                        # Approval status badge in its own centered card with improved styling
-                        status = "Approved" if prediction == 1 else "Denied"
-                        status_class = "approved" if prediction == 1 else "denied"
-                        status_emoji = "✅" if prediction == 1 else "❌"
-                        st.markdown(f"""
-                            <div class="card-container" style="max-width: 300px; margin: 0 auto 2rem auto; text-align: center;">
-                                <div class="status-badge {status_class}" style="font-size:1.5rem; padding:1rem 2rem; display:inline-block; border-radius:8px;">
-                                    {status_emoji} <span style="margin-left: 0.5rem;">{status}</span>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # Recommendation info below status card with dynamic styling
-                        recommendation = get_recommendation(st.session_state.form_data['documentation_complete'], st.session_state.form_data['prior_denials'])
-                        if "Submit missing documentation" in recommendation:
-                            st.warning(f"💡 Recommendation: {recommendation}")
-                        elif "No additional action recommended" in recommendation:
-                            st.success(f"💡 Recommendation: {recommendation}")
-                        else:
-                            st.error(f"💡 Recommendation: {recommendation}")
-
-                        # Add conditional message based on top feature importance with tooltip
-                        top_importance = abs(feature_importance[0]['shap_value'])
-                        if top_importance < 0.1:
-                            st.info("No single factor strongly influenced this decision; approval is based on multiple small factors.")
-                        else:
-                            col1, col2 = st.columns([20, 1])
-                            with col1:
-                                st.info("Other factors also contributed to this decision.")
-                            with col2:
-                                st.caption("ℹ️", help="Other factors had lower impact but still influenced the prediction.")
-
-                        # Pre-define display_df for the download button, so it always exists even if advanced view is not checked
-                        display_df = pd.DataFrame(feature_importance)
-
-                        # The following checkboxes do NOT reset st.session_state.step, so toggling them won't reset the app to the first page.
-                        # This preserves the current step and keeps the user on the results page.
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            show_advanced = st.checkbox("Show full feature importances", key="show_advanced")
-                        with col2:
-                            show_all_features = st.checkbox("Show all input features (including zero impact)", key="show_all_features")
-
-                        if show_advanced:
-                            st.markdown("### Full Feature Importances")
-                            st.caption("This table shows all features that contributed to this case.")
-                            
-                            # Filter features based on show_all_features setting
-                            if not show_all_features:
-                                display_df = display_df[display_df['shap_value'] > 0.001]  # Only show meaningful impacts
-                            
-                            # Add effect direction to full feature importance DataFrame
-                            display_df['impact'] = ['positive' if v > 0 else 'negative' for v in display_df['shap_value']]
-                            
-                            st.dataframe(
-                                display_df,
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                            
-                            # Show grouped feature importances
-                            st.markdown("### Feature Impact by Category")
-                            st.caption("This shows the total impact of each feature category on the prediction.")
-                            fig_grouped = px.bar(
-                                pd.DataFrame(feature_importance).groupby('impact').count().reset_index(),
-                                x='impact',
-                                y='shap_value',
-                                orientation='h',
-                                color='impact',
-                                color_discrete_sequence=px.colors.qualitative.Set3,
-                                labels={'shap_value': 'Total Impact', 'impact': 'Feature Category'},
+                                shap_df, 
+                                x="SHAP Value", 
+                                y="Feature", 
+                                orientation="h",
+                                title="Top SHAP Feature Contributions",
+                                color="SHAP Value",
+                                color_continuous_scale="RdBu",
+                                template="plotly_white",
                                 height=300
                             )
-                            fig_grouped.update_layout(
-                                showlegend=False,
-                                margin=dict(l=0, r=0, t=0, b=0),
-                                xaxis_title="Total Impact",
-                                yaxis_title="",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                plot_bgcolor="rgba(0,0,0,0)"
+                            fig.update_layout(
+                                margin=dict(l=10, r=10, t=40, b=10),
+                                xaxis_title="Impact on Approval Likelihood",
+                                yaxis_title=None,
+                                font=dict(size=14),
                             )
-                            st.plotly_chart(fig_grouped, use_container_width=True)
+                            st.plotly_chart(fig, use_container_width=True)
 
-                        # Download button for prediction results
-                        csv = display_df.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Prediction Report",
-                            data=csv,
-                            file_name="prediction_report.csv",
-                            mime="text/csv",
-                            help="Download detailed prediction results as CSV"
-                        )
+                        st.markdown("---")
 
     # Footer
     st.markdown("""
@@ -1133,3 +1130,14 @@ elif selected == "About":
     For support or questions, please contact the development team.
     """)
     st.markdown('</div>', unsafe_allow_html=True)
+
+@st.cache_resource
+def load_model_locally_from_s3():
+    s3 = boto3.client("s3")
+    response = s3.get_object(Bucket="pa-predictor-bucket-rs", Key="pa_predictor_model.pkl")
+    model = pickle.loads(response['Body'].read())
+    return model
+
+# Load the local model for SHAP explanations
+local_model = load_model_locally_from_s3()
+
