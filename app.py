@@ -891,25 +891,31 @@ if selected == "Predict":
         
         col1, col2 = st.columns(2)
         with col1:
-            # Load payers dynamically from dataset
-            payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
-            payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
-            # Filter out any non-payer values (like header rows)
-            payer_options = [p for p in payer_options if p not in ['payer', '']]
-            st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
-            st.session_state.form_data['payer'] = st.selectbox(
-                "Insurance Payer",
-                payer_options,
-                index=payer_options.index(st.session_state.form_data['payer']) if st.session_state.form_data['payer'] in payer_options else 0
-            )
-            urgency_options = ['Y', 'N']
-            current_urgency = st.session_state.form_data['urgency_flag']
-            urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
-            st.session_state.form_data['urgency_flag'] = st.selectbox(
-                "Urgent Request", 
-                urgency_options,
-                index=urgency_index
-            )
+            if DEBUG_MODE:
+                st.write("🔍 Session Keys:", list(st.session_state.keys()))
+            try:
+                # Load payers dynamically from dataset
+                payer_df = pd.read_csv('synthetic_pa_dataset_v2.csv')
+                payer_options = sorted(payer_df['payer'].dropna().unique().tolist())
+                # Filter out any non-payer values (like header rows)
+                payer_options = [p for p in payer_options if p not in ['payer', '']]
+                st.write(f"⚠️ Loaded {len(payer_options)} unique insurance payers from dataset.")
+                st.session_state.form_data['payer'] = st.selectbox(
+                    "Insurance Payer",
+                    payer_options,
+                    index=payer_options.index(st.session_state.form_data['payer']) if st.session_state.form_data['payer'] in payer_options else 0
+                )
+                urgency_options = ['Y', 'N']
+                current_urgency = st.session_state.form_data['urgency_flag']
+                urgency_index = urgency_options.index(current_urgency) if current_urgency in urgency_options else 0
+                st.session_state.form_data['urgency_flag'] = st.selectbox(
+                    "Urgent Request", 
+                    urgency_options,
+                    index=urgency_index
+                )
+            except Exception as e:
+                st.error(f"❌ Streamlit Cloud layout error: {e}")
+                st.stop()
         with col2:
             doc_options = ['Y', 'N']
             current_doc = st.session_state.form_data['documentation_complete']
