@@ -27,7 +27,7 @@ Prior authorization delays cost the U.S. healthcare system **$50+ billion annual
 ## 🧠 Machine Learning Model
 
 - Trained on a **synthetic dataset** of 10,000+ cases
-- Uses a **Random Forest classifier** within a scikit-learn pipeline
+- Uses a **Logistic Regression classifier** within a scikit-learn pipeline
 - Automatically encodes categorical features
 - Uploaded to **AWS S3**, and reloaded by the FastAPI backend every 60s
 
@@ -35,7 +35,7 @@ Prior authorization delays cost the U.S. healthcare system **$50+ billion annual
 
 ## 🖥️ Live Demo
 
-➡️ Streamlit Cloud App: **[https://...your-url...](https://...)**
+➡️ Live app (hosted on Render): https://pa-approval-predictor.onrender.com/
 
 ---
 
@@ -71,6 +71,9 @@ Prior authorization delays cost the U.S. healthcare system **$50+ billion annual
 ├── icd10_codes.csv           # Cleaned ICD-10 codes
 ├── provider_specialties.csv  # Valid specialties
 ├── .gitignore
+
+```
+
 ### 🛠 Setup Instructions
 Clone the repo
 
@@ -86,6 +89,8 @@ streamlit run app.py
 Run the backend (optional)
 
 uvicorn server:app --reload --host 0.0.0.0 --port 8001
+_Note: the backend is deployed separately on an EC2 instance for the live demo. Running locally requires AWS credentials and model file access._
+
 
 🔐 Environment Notes
 Set your AWS credentials using ~/.aws/credentials or environment variables
@@ -93,12 +98,10 @@ Set your AWS credentials using ~/.aws/credentials or environment variables
 Make sure the .venv/ and model pickle files are excluded from version control (.gitignore)
 
 🙋‍♂️ Contact
-Built with ❤️ by Ravi Suresh
+Built by Ravi Suresh
 
 For questions or feedback, feel free to reach out.
 
-📈 Future Improvements
-Real-time retraining pipeline from logged cases
 
 HIPAA-compliant integration with EHR systems
 
