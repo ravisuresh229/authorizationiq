@@ -3,15 +3,15 @@
 An AI-powered web application that predicts the probability of **prior authorization (PA)** approval for medical procedures using real-world patient and request features.
 
 Built with:
-- 🧠 Machine Learning (scikit-learn)
-- 🧾 SHAP interpretability
-- 🚀 FastAPI backend (auto-reloads model from S3 every 60s)
-- 🌐 Streamlit frontend (fully interactive, styled, multi-step form)
-- ☁️ AWS S3 integration for live model hosting + prediction logging
+-  Machine Learning (scikit-learn)
+-  SHAP interpretability
+-  FastAPI backend (auto-reloads model from S3 every 60s)
+-  Streamlit frontend (fully interactive, styled, multi-step form)
+-  AWS S3 integration for live model hosting + prediction logging
 
 ---
 
-## 🔍 Overview
+## Overview
 
 Prior authorization delays cost the U.S. healthcare system **$50+ billion annually**. This tool aims to improve decision-making at the point-of-care by predicting the likelihood of PA approval based on key features like:
 
@@ -24,16 +24,16 @@ Prior authorization delays cost the U.S. healthcare system **$50+ billion annual
 
 ---
 
-## 🧠 Machine Learning Model
+##  Machine Learning Model
 
 - Trained on a **synthetic dataset** of 10,000+ cases
-- Uses a **Logistic Regression classifier** within a scikit-learn pipeline
+- Uses a Logistic Regression classifier within a scikit-learn pipeline
 - Automatically encodes categorical features
-- Uploaded to **AWS S3**, and reloaded by the FastAPI backend every 60s
+- Uploaded to AWS S3, and reloaded by the FastAPI backend every 60s
 
 ---
 
-## 🖥️ Live Demo
+## Live Demo
 
 ➡️ Live app (hosted on Render): https://pa-approval-predictor.onrender.com/
 
@@ -41,18 +41,18 @@ Prior authorization delays cost the U.S. healthcare system **$50+ billion annual
 
 ## 🚀 Features
 
-### ✅ Streamlit Frontend
+### Streamlit Frontend
 - Multi-step form with input validation
 - Dynamic CPT & ICD-10 code validation (74k+ and 8k+ codes)
 - Animated UI, plotly gauge & bar charts
 - SHAP feature importance + auto-generated recommendations
 
-### 🧩 FastAPI Backend
+### FastAPI Backend
 - `/predict` endpoint exposed on EC2 instance
 - Health check and input schema validation
 - Model reloads from S3 every 60 seconds
 
-### ☁️ AWS Integration
+###  AWS Integration
 - **S3 buckets**:
   - `pa-predictor-bucket-rs` – model storage
   - `pa-predictor-logs` – prediction logging
@@ -97,7 +97,7 @@ Set your AWS credentials using ~/.aws/credentials or environment variables
 
 Make sure the .venv/ and model pickle files are excluded from version control (.gitignore)
 
-🙋‍♂️ Contact
+## Contact
 Built by Ravi Suresh
 
 For questions or feedback, feel free to reach out.
