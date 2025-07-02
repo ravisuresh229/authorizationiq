@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd pa-predictor-react && npm install --legacy-peer-deps && npm run build",
+  "outputDirectory": "pa-predictor-react/build",
+  "installCommand": "cd pa-predictor-react && npm install --legacy-peer-deps"
+} 

@@ -153,32 +153,32 @@ const Predict: React.FC = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">AuthorizationIQ</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Enter patient and procedure information to predict prior authorization requirements with AI-powered insights.
-          </p>
-        </div>
+        </p>
+      </div>
         <div className="flex justify-center">
           <div className="w-full max-w-lg">
-            <PredictionForm 
-              onPrediction={handlePrediction}
-              onError={handleError}
-              loading={loading}
-              setLoading={setLoading}
-            />
+          <PredictionForm 
+            onPrediction={handlePrediction}
+            onError={handleError}
+            loading={loading}
+            setLoading={setLoading}
+          />
 
-            {error && (
+          {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 shadow-sm">
-                <div className="flex">
+              <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Error</h3>
-                    <div className="mt-2 text-sm text-red-700">{error}</div>
-                  </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">{error}</div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
             {loading && <PredictionSkeleton />}
 
@@ -194,9 +194,9 @@ const Predict: React.FC = () => {
                     {result.prediction.approval_prediction === 1 ? 'APPROVED' : 'DENIED'}
                   </div>
                 </div>
-                
+
                 <div className="space-y-6">
-                  <div>
+                <div>
                     <span className="text-sm font-medium text-gray-500">Prediction Status</span>
                     <div className={`mt-1 text-2xl font-bold ${
                       result.prediction.approval_prediction === 1 ? 'text-green-600' : 'text-red-600'
@@ -207,13 +207,13 @@ const Predict: React.FC = () => {
 
                   <ConfidenceMeter probability={result.prediction.probability} />
 
-                  <div>
+                <div>
                     <span className="text-sm font-medium text-gray-500">Model Status</span>
                     <div className="mt-1 text-sm text-gray-900 flex items-center">
                       <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                      {result.prediction.status}
-                    </div>
+                    {result.prediction.status}
                   </div>
+                </div>
 
                   {/* Key Factors Section */}
                   <KeyFactors data={(result as any).input || { procedure_code: '', diagnosis_code: '', payer: '', provider_specialty: '' }} />
@@ -228,7 +228,7 @@ const Predict: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+            </div>
         </div>
       </div>
 
