@@ -51,32 +51,7 @@ const ConfidenceMeter = ({ probability }: { probability: number }) => {
   );
 };
 
-// Explanation card component
-const ExplanationCard = ({ result }: { result: PredictionResult }) => {
-  const isApproved = result.prediction.approval_prediction === 1;
-  const probability = result.prediction.probability;
-  
-  const getExplanation = () => {
-    if (isApproved) {
-      return probability >= 0.8 
-        ? "Strong approval likelihood based on favorable historical patterns."
-        : "Moderate approval likelihood with some risk factors present.";
-    } else {
-      return probability <= 0.3
-        ? "High denial risk due to multiple unfavorable factors."
-        : "Moderate denial risk with some positive indicators.";
-    }
-  };
 
-  return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-      <h3 className="font-semibold text-blue-900 mb-2">💡 Prediction Insight</h3>
-      <p className="text-sm text-blue-800 leading-relaxed">
-        {getExplanation()} This prediction is based on historical patterns and current request characteristics.
-      </p>
-    </div>
-  );
-};
 
 // Add getInsightMessage function
 const getInsightMessage = (prediction: number, probability: number): string => {

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
 import { FaChartBar, FaClock, FaInfoCircle, FaUserCircle, FaChevronLeft } from 'react-icons/fa';
 import { useState } from 'react';
 
