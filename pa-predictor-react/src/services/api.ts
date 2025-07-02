@@ -1,6 +1,6 @@
 import { PredictionInput, PredictionResult, RecentPrediction } from '../types/prediction';
 
-const API_BASE_URL = 'http://localhost:8001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://54.163.203.207:8001';
 
 export const api = {
   async predict(input: PredictionInput): Promise<PredictionResult> {
