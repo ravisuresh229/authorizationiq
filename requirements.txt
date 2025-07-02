@@ -17,6 +17,7 @@ cycler==0.12.1
 entrypoints==0.4
 Faker==37.1.0
 favicon==0.7.0
+fastapi==0.115.6
 filelock==3.18.0
 fonttools==4.57.0
 gitdb==4.0.12
@@ -94,4 +95,6 @@ typing_extensions==4.13.2
 tzdata==2025.2
 tzlocal==5.3.1
 urllib3==2.4.0
+uvicorn==0.32.1
 validators==0.35.0
+pydantic==2.10.4
