@@ -1,7 +1,10 @@
 import { PredictionInput, PredictionResult, RecentPrediction } from '../types/prediction';
 
-// Use Vercel proxy for production, localhost for development
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// Use Render.com URL for production, localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (window.location.hostname === 'localhost' 
+    ? 'http://localhost:8001' 
+    : 'https://pa-predictor-api.onrender.com'); // Replace with your actual Render URL
 
 export const api = {
   async predict(input: PredictionInput): Promise<PredictionResult> {
