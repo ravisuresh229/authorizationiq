@@ -1,14 +1,9 @@
 services:
   - type: web
-    name: pa-backend
+    name: pa-predictor-api
     env: python
-    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn server:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: AWS_REGION
-        value: us-east-1 
+      - key: PYTHON_VERSION
+        value: 3.9.16 
