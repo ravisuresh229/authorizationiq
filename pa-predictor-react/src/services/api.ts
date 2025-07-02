@@ -1,6 +1,7 @@
 import { PredictionInput, PredictionResult, RecentPrediction } from '../types/prediction';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://54.163.203.207:8001';
+// Use Vercel proxy for production, localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 export const api = {
   async predict(input: PredictionInput): Promise<PredictionResult> {
