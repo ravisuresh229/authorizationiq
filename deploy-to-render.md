@@ -1,5 +1,20 @@
 # 🚀 Deploy to Render.com NOW
 
+## ✅ Project Structure Ready!
+Your project is now properly organized:
+```
+paproject/
+├── backend/           ← Backend files for Render
+│   ├── server.py
+│   ├── requirements.txt
+│   ├── render.yaml
+│   ├── cpt4.csv
+│   ├── icd10_2025.txt
+│   └── ...
+├── pa-predictor-react/ ← Frontend files for Vercel
+└── render.yaml        ← Root config pointing to backend/
+```
+
 ## Step 1: Go to Render.com
 1. Open [render.com](https://render.com) in your browser
 2. Sign up/login with your GitHub account
@@ -15,6 +30,7 @@ Fill in these exact settings:
 - **Environment**: `Python 3`
 - **Region**: `Oregon (US West)` (or closest to you)
 - **Branch**: `main`
+- **Root Directory**: `backend` ← **IMPORTANT!**
 - **Build Command**: `pip install -r requirements.txt`
 - **Start Command**: `uvicorn server:app --host 0.0.0.0 --port $PORT`
 - **Plan**: `Free`
@@ -50,6 +66,7 @@ Once deployed, test these URLs:
 - `https://your-app.onrender.com/about` - Should return app info
 
 ## Troubleshooting
-- **Build fails**: Check that all files are in the root directory
+- **Build fails**: Make sure "Root Directory" is set to `backend`
 - **App crashes**: Check Render logs for errors
-- **Model not loading**: Make sure S3 credentials are set if using S3 
+- **Model not loading**: Make sure S3 credentials are set if using S3
+- **File not found**: All backend files are now in the `backend/` directory 
