@@ -1,6 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pandas
 boto3
 pydantic
 python-multipart
+scikit-learn==1.6.1
+numpy
+joblib
