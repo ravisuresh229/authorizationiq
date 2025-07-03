@@ -1,12 +1,11 @@
 import React from 'react';
-import { FaChartBar, FaClock, FaInfoCircle, FaUserCircle, FaChevronLeft } from 'react-icons/fa';
+import { FaChartBar, FaInfoCircle, FaUserCircle, FaChevronLeft } from 'react-icons/fa';
 import { useState } from 'react';
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   const ChartBar = FaChartBar as React.ElementType;
-  const Clock = FaClock as React.ElementType;
   const InfoCircle = FaInfoCircle as React.ElementType;
   const UserCircle = FaUserCircle as React.ElementType;
   const ChevronLeft = FaChevronLeft as React.ElementType;
@@ -31,13 +30,6 @@ const Sidebar: React.FC = () => {
           label="Predict" 
           to="/predict" 
           tooltip="Make Predictions" 
-          collapsed={collapsed} 
-        />
-        <SidebarItem 
-          icon={<Clock />} 
-          label="Recent Predictions" 
-          to="/recent" 
-          tooltip="Recent Predictions" 
           collapsed={collapsed} 
         />
         <SidebarItem 

@@ -25,7 +25,6 @@ CHECK_INTERVAL = 60
 # Globals
 model = None
 last_modified = None
-recent_predictions = []
 
 # Load valid codes for validation
 def load_valid_codes():
@@ -161,9 +160,7 @@ def health_check():
         return JSONResponse(status_code=503, content={"status": "error", "model_loaded": False, "detail": "Model not loaded"})
     return {"status": "healthy", "model_loaded": True}
 
-@app.get("/recent-predictions")
-def get_recent_predictions():
-    return recent_predictions[-10:]  # Return last 10 predictions
+
 
 @app.get("/model/feature-importance")
 def get_feature_importance():
@@ -250,16 +247,7 @@ def predict(input_data: PredictionInput):
             "probability": round(prob, 4),
             "status": "success"
         }
-        # Store in recent predictions with timestamp
-        recent_result = {
-            "prediction": "APPROVED" if pred == 1 else "DENIED",
-            "confidence": round(prob, 4),
-            "timestamp": datetime.now().isoformat(),
-            "input": input_data.dict()
-        }
-        recent_predictions.append(recent_result)
-        if len(recent_predictions) > 50:  # Keep only last 50
-            recent_predictions.pop(0)
+
         # Log prediction
         print(f"Prediction input: {input_data.dict()} | Result: {result}")
         return {"prediction": result, "feature_importance": feature_importance}

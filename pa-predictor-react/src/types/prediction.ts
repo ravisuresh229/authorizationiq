@@ -26,12 +26,7 @@ export interface PredictionResult {
   feature_importance?: FeatureImportance[];
 }
 
-export interface RecentPrediction {
-  prediction: string;
-  confidence: number;
-  timestamp: string;
-  input: PredictionInput;
-}
+
 
 export interface CPTCode {
   code: string;
