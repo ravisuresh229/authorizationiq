@@ -6,9 +6,14 @@ const About: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Debug: log the API URL being used
+    console.log('API URL:', process.env.REACT_APP_API_URL);
     api.getAbout()
       .then(setAbout)
-      .catch(() => setError('Failed to load about info'));
+      .catch((err) => {
+        setError('Failed to load about info');
+        console.error('About fetch error:', err);
+      });
   }, []);
 
   if (error) return <div className="text-red-600">{error}</div>;
