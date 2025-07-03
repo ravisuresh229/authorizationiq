@@ -1,10 +1,7 @@
 import { PredictionInput, PredictionResult, RecentPrediction } from '../types/prediction';
 
-// Use Render.com URL for production, localhost for development
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (window.location.hostname === 'localhost' 
-    ? 'http://localhost:8001' 
-    : 'https://pa-predictor-api.onrender.com'); // Replace with your actual Render URL
+// Use Railway URL for production, localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pa-predictor-api-production-8341.up.railway.app';
 
 export const api = {
   async predict(input: PredictionInput): Promise<PredictionResult> {

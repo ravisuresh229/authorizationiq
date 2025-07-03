@@ -1,6 +1,6 @@
 import { CPTCode, ICD10Code } from '../types/prediction';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://54.163.203.207:8001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pa-predictor-api-production-8341.up.railway.app';
 
 export const dataService = {
   async loadCPTCodes(): Promise<CPTCode[]> {
