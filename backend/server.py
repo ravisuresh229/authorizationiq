@@ -241,6 +241,80 @@ def predict(input_data: PredictionInput):
                 "importance": round(coef, 4),
                 "direction": direction
             })
+
+        # --- BEGIN INSIGHT GENERATION LOGIC ---
+        def generate_insights(feature_importance, input_data):
+            insights = []
+            # Precompute unique words among all keys, only words of length >= 3
+            key_words = {}
+            word_counts = {}
+            for key in input_data.keys():
+                words = [w for w in key.lower().split('_') if len(w) >= 3]
+                key_words[key] = words
+                for word in words:
+                    word_counts[word] = word_counts.get(word, 0) + 1
+            for feature_info in feature_importance:
+                feature_name = feature_info["feature"]
+                importance = feature_info["importance"]
+                direction = feature_info["direction"]
+                matched_key = None
+                matched_value = None
+                # 1. Exact value match (case-insensitive, exact)
+                for key, value in input_data.items():
+                    if str(value).lower() == feature_name.lower().split()[-1]:
+                        matched_key = key
+                        matched_value = value
+                        break
+                    # Also allow value to appear as a whole word in feature name
+                    feature_words = feature_name.lower().split()
+                    if str(value).lower() in feature_words:
+                        matched_key = key
+                        matched_value = value
+                        break
+                # 2. Full key match (case-insensitive, as whole word)
+                if not matched_key:
+                    feature_words = feature_name.lower().split()
+                    for key in input_data.keys():
+                        if key.lower() in feature_words:
+                            matched_key = key
+                            matched_value = input_data[key]
+                            break
+                # 3. Unique word match (only words of length >= 3, as whole word)
+                if not matched_key:
+                    feature_words = set(feature_name.lower().split())
+                    for key, words in key_words.items():
+                        for word in words:
+                            if word_counts[word] == 1 and word in feature_words:
+                                matched_key = key
+                                matched_value = input_data[key]
+                                break
+                        if matched_key:
+                            break
+                # 4. Fallback
+                if matched_key and matched_value is not None:
+                    if direction == "positive":
+                        insight = f"✅ {feature_name} ({matched_key}: {matched_value}) is supporting approval"
+                    else:
+                        insight = f"⚠️ {feature_name} ({matched_key}: {matched_value}) may reduce approval chances"
+                else:
+                    if direction == "positive":
+                        insight = f"✅ {feature_name} is supporting approval"
+                    else:
+                        insight = f"⚠️ {feature_name} may reduce approval chances"
+                insights.append({
+                    "feature": feature_name,
+                    "importance": importance,
+                    "direction": direction,
+                    "insight": insight,
+                    "matched_key": matched_key,
+                    "matched_value": matched_value
+                })
+            return insights
+        # --- END INSIGHT GENERATION LOGIC ---
+
+        # Generate insights for the API response
+        insights = generate_insights(feature_importance, input_data.dict())
+
         # Create result in original format
         result = {
             "approval_prediction": int(pred),
@@ -250,7 +324,7 @@ def predict(input_data: PredictionInput):
 
         # Log prediction
         print(f"Prediction input: {input_data.dict()} | Result: {result}")
-        return {"prediction": result, "feature_importance": feature_importance}
+        return {"prediction": result, "feature_importance": feature_importance, "insights": insights}
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail="Prediction failed. Check input format.") 
