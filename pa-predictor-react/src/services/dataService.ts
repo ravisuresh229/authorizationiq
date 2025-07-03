@@ -48,7 +48,13 @@ export const dataService = {
   },
 
   async loadSpecialties(): Promise<string[]> {
-    // Return common specialties since we don't have this data
+    try {
+      const response = await fetch(`${API_BASE_URL}/codes/specialties`);
+      if (response.ok) return response.json();
+    } catch (error) {
+      console.log('API endpoint not available, using fallback specialties list');
+    }
+    // Fallback to hardcoded list if backend fails
     return [
       'Cardiology', 'Dermatology', 'Endocrinology', 'Gastroenterology', 
       'General Surgery', 'Internal Medicine', 'Neurology', 'Oncology', 
