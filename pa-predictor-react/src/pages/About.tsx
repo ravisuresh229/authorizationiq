@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { dataService } from '../services/dataService';
+import { api } from '../services/api';
 
 const About: React.FC = () => {
   const [about, setAbout] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    dataService.loadAbout()
+    api.getAbout()
       .then(setAbout)
       .catch(() => setError('Failed to load about info'));
   }, []);
