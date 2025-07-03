@@ -129,7 +129,7 @@ const PredictionForm: React.FC<PredictionFormProps> = ({
     setLoading(true);
     try {
       const result = await api.predict(formData);
-      onPrediction(result);
+      onPrediction({ ...result, input: formData });
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Prediction failed');
     } finally {

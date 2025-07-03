@@ -77,22 +77,62 @@ const FeatureImpact: React.FC<{ feature_importance?: { feature: string; importan
   );
 };
 
-// Dynamic insight message based on probability and top feature
-const getInsightMessage = (prediction: number, probability: number, feature_importance?: { feature: string; importance: number; direction: string }[]) => {
-  if (!feature_importance || feature_importance.length === 0) {
-    return 'No specific insight available.';
-  }
-  const top = feature_importance[0];
-  if (prediction === 1) {
-    if (probability > 0.8) return `Very high approval likelihood. Most important factor: ${top.feature} (${top.direction === 'positive' ? 'favors approval' : 'may reduce approval odds'}).`;
-    if (probability > 0.5) return `Good approval chances. Pay attention to: ${top.feature}.`;
-    return `Borderline approval. Consider strengthening: ${top.feature}.`;
-  } else {
-    if (probability < 0.2) return `Very high denial risk. Most important factor: ${top.feature} (${top.direction === 'negative' ? 'hurts approval' : 'not enough to approve'}).`;
-    if (probability < 0.5) return `Likely denial. Review: ${top.feature}.`;
-    return `Borderline denial. Improving: ${top.feature} may help.`;
-  }
+// Mapping for user-friendly feature names
+const featureLabelMap: Record<string, string> = {
+  documentation_complete: 'Documentation Status',
+  procedure_code: 'Procedure Code',
+  diagnosis_code: 'Diagnosis Code',
+  provider_specialty: 'Provider Specialty',
+  payer: 'Insurance Payer',
+  prior_denials_provider: 'Prior Denial History',
+  region: 'Region',
+  urgency_flag: 'Urgency',
+  patient_age: 'Patient Age',
+  patient_gender: 'Patient Gender',
 };
+
+// Mapping for value explanations (optional, can be expanded)
+const valueMap: Record<string, Record<string, string>> = {
+  documentation_complete: {
+    Y: 'Complete',
+    N: 'Incomplete',
+  },
+  urgency_flag: {
+    Y: 'Urgent',
+    N: 'Routine',
+  },
+  patient_gender: {
+    M: 'Male',
+    F: 'Female',
+  },
+};
+
+function generatePredictionInsight(input: PredictionInput, featureImportance?: { feature: string; importance: number; direction: string }[], probability?: number) {
+  if (!featureImportance || featureImportance.length === 0) return 'No specific insight available.';
+  // Top 2-3 features
+  const top = featureImportance.slice(0, 3);
+  const lines: string[] = [];
+  // First line: overall summary
+  if (probability !== undefined) {
+    if (probability > 0.8) lines.push('This request has a very high chance of approval.');
+    else if (probability > 0.5) lines.push('This request has a good chance of approval.');
+    else if (probability > 0.3) lines.push('This request is borderline for approval.');
+    else lines.push('This request has a high risk of denial.');
+  }
+  // Next lines: top features
+  top.forEach(f => {
+    // Try to match feature name to input key
+    let key = Object.keys(input).find(k => f.feature.toLowerCase().includes(k.toLowerCase()));
+    let value = key ? input[key as keyof PredictionInput] : undefined;
+    let label = key ? featureLabelMap[key] || f.feature : f.feature;
+    let valueLabel = key && valueMap[key] && valueMap[key][String(value)] ? valueMap[key][String(value)] : value;
+    let direction = f.direction === 'positive' ? 'increases' : 'decreases';
+    if (label && value !== undefined) {
+      lines.push(`${label}: ${valueLabel} (${direction} approval odds)`);
+    }
+  });
+  return lines.join(' ');
+}
 
 const Predict: React.FC = () => {
   const [result, setResult] = useState<PredictionResult | null>(null);
@@ -185,7 +225,7 @@ const Predict: React.FC = () => {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                     <h3 className="font-semibold text-blue-900 mb-2">💡 Prediction Insight</h3>
                     <p className="text-sm text-blue-800 leading-relaxed">
-                      {getInsightMessage(result.prediction.approval_prediction, result.prediction.probability, result.feature_importance)}
+                      {result.input ? generatePredictionInsight(result.input, result.feature_importance, result.prediction.probability) : 'No specific insight available.'}
                     </p>
                   </div>
                 </div>

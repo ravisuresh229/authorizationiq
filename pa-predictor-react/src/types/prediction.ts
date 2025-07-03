@@ -24,6 +24,7 @@ export interface PredictionResult {
     status: string;
   };
   feature_importance?: FeatureImportance[];
+  input?: PredictionInput;
 }
 
 
