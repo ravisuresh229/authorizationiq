@@ -87,12 +87,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://authorizationiq.vercel.app",
-        "https://authorizationiq-*.vercel.app",  # For preview deployments
-        "https://*.vercel.app"
-    ],
+    allow_origins=["*"],  # Allow all origins temporarily
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
