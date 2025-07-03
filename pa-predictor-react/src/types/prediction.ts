@@ -25,6 +25,7 @@ export interface PredictionResult {
   };
   feature_importance?: FeatureImportance[];
   input?: PredictionInput;
+  insights?: { insight: string; [key: string]: any }[];
 }
 
 

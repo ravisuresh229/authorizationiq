@@ -121,14 +121,23 @@ function generatePredictionInsight(input: PredictionInput, featureImportance?: {
   }
   // Next lines: top features
   top.forEach(f => {
-    // Try to match feature name to input key
-    let key = Object.keys(input).find(k => f.feature.toLowerCase().includes(k.toLowerCase()));
+    // Try to match feature name to input key or value
+    let key = Object.keys(input).find(k => {
+      // Match by key in feature name
+      if (f.feature.toLowerCase().includes(k.toLowerCase().replace('_', ' '))) return true;
+      // Match by value in feature name (e.g., "Procedure Code 61514")
+      if (typeof input[k as keyof PredictionInput] === 'string' && f.feature.includes(String(input[k as keyof PredictionInput]))) return true;
+      return false;
+    });
     let value = key ? input[key as keyof PredictionInput] : undefined;
     let label = key ? featureLabelMap[key] || f.feature : f.feature;
     let valueLabel = key && valueMap[key] && valueMap[key][String(value)] ? valueMap[key][String(value)] : value;
     let direction = f.direction === 'positive' ? 'increases' : 'decreases';
     if (label && value !== undefined) {
       lines.push(`${label}: ${valueLabel} (${direction} approval odds)`);
+    } else {
+      // Fallback: just show the feature name and direction
+      lines.push(`${f.feature} (${direction} approval odds)`);
     }
   });
   return lines.join(' ');
@@ -224,9 +233,17 @@ const Predict: React.FC = () => {
                   {/* Dynamic Prediction Insights */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                     <h3 className="font-semibold text-blue-900 mb-2">💡 Prediction Insight</h3>
-                    <p className="text-sm text-blue-800 leading-relaxed">
-                      {result.input ? generatePredictionInsight(result.input, result.feature_importance, result.prediction.probability) : 'No specific insight available.'}
-                    </p>
+                    {Array.isArray(result.insights) && result.insights.length > 0 ? (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {result.insights.map((insightObj: { insight: string }, idx: number) => (
+                          <li key={idx} className="text-sm text-blue-800 leading-relaxed">{insightObj.insight}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-blue-800 leading-relaxed">
+                        {result.input ? generatePredictionInsight(result.input, result.feature_importance, result.prediction.probability) : 'No specific insight available.'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
