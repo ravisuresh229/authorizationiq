@@ -243,8 +243,19 @@ def predict(input_data: PredictionInput):
             })
 
         # --- BEGIN INSIGHT GENERATION LOGIC ---
-        def generate_insights(feature_importance, input_data):
+        def generate_insights(feature_importance, input_data, probability=None):
             insights = []
+            # Summary line
+            if probability is not None:
+                if probability > 0.8:
+                    summary = "This request has a very high chance of approval."
+                elif probability > 0.5:
+                    summary = "This request has a good chance of approval."
+                elif probability > 0.3:
+                    summary = "This request is borderline for approval."
+                else:
+                    summary = "This request has a high risk of denial."
+                insights.append({"insight": summary})
             # Precompute unique words among all keys, only words of length >= 3
             key_words = {}
             word_counts = {}
@@ -253,9 +264,10 @@ def predict(input_data: PredictionInput):
                 key_words[key] = words
                 for word in words:
                     word_counts[word] = word_counts.get(word, 0) + 1
-            for feature_info in feature_importance:
+            # Only use the top 3 features
+            concise_features = feature_importance[:3]
+            for feature_info in concise_features:
                 feature_name = feature_info["feature"]
-                importance = feature_info["importance"]
                 direction = feature_info["direction"]
                 matched_key = None
                 matched_value = None
@@ -265,7 +277,6 @@ def predict(input_data: PredictionInput):
                         matched_key = key
                         matched_value = value
                         break
-                    # Also allow value to appear as a whole word in feature name
                     feature_words = feature_name.lower().split()
                     if str(value).lower() in feature_words:
                         matched_key = key
@@ -290,30 +301,23 @@ def predict(input_data: PredictionInput):
                                 break
                         if matched_key:
                             break
-                # 4. Fallback
+                # Compose concise, user-friendly insight
                 if matched_key and matched_value is not None:
                     if direction == "positive":
-                        insight = f"✅ {feature_name} ({matched_key}: {matched_value}) is supporting approval"
+                        insight = f"{feature_name} is helping approval."
                     else:
-                        insight = f"⚠️ {feature_name} ({matched_key}: {matched_value}) may reduce approval chances"
+                        insight = f"{feature_name} may reduce approval chances."
                 else:
                     if direction == "positive":
-                        insight = f"✅ {feature_name} is supporting approval"
+                        insight = f"{feature_name} is helping approval."
                     else:
-                        insight = f"⚠️ {feature_name} may reduce approval chances"
-                insights.append({
-                    "feature": feature_name,
-                    "importance": importance,
-                    "direction": direction,
-                    "insight": insight,
-                    "matched_key": matched_key,
-                    "matched_value": matched_value
-                })
+                        insight = f"{feature_name} may reduce approval chances."
+                insights.append({"insight": insight})
             return insights
         # --- END INSIGHT GENERATION LOGIC ---
 
         # Generate insights for the API response
-        insights = generate_insights(feature_importance, input_data.dict())
+        insights = generate_insights(feature_importance, input_data.dict(), prob)
 
         # Create result in original format
         result = {
