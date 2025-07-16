@@ -30,8 +30,8 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
       option.value.toLowerCase().includes(term.toLowerCase()) ||
       option.label.toLowerCase().includes(term.toLowerCase())
     );
-    setFilteredOptions(filtered.slice(0, 10));
-  }, 300);
+    setFilteredOptions(filtered.slice(0, 8));
+  }, 200);
 
   useEffect(() => {
     debouncedSearch(searchTerm);
@@ -88,19 +88,18 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     <div className="relative" ref={wrapperRef}>
       <div className="relative">
         {multiple && selectedItems.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
+          <div className="flex flex-wrap gap-2 mb-3">
             {selectedItems.map((item) => (
               <span
                 key={item.value}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-all"
               >
                 {item.label}
                 <button
                   type="button"
-                  className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500 focus:outline-none"
+                  className="ml-2 text-gray-400 hover:text-gray-600"
                   onClick={() => removeSelectedItem(item)}
                 >
-                  <span className="sr-only">Remove</span>
                   ×
                 </button>
               </span>
@@ -108,33 +107,42 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
           </div>
         )}
         
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
+        <div className="relative">
+          <span className="absolute left-0 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={handleInputChange}
+            onFocus={() => setIsOpen(true)}
+            placeholder={placeholder}
+            className="w-full pl-6 pr-0 py-4 border-0 border-b-2 border-gray-200 focus:border-black focus:outline-none text-lg font-light bg-transparent transition-all"
+          />
+        </div>
       </div>
 
       {isOpen && filteredOptions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-          {filteredOptions.map((option, index) => (
-            <div
-              key={index}
-              className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                isOptionSelected(option) ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleOptionSelect(option)}
-            >
-              <div className="font-medium text-gray-900">{option.value}</div>
-              <div className="text-sm text-gray-500">{option.label}</div>
-              {isOptionSelected(option) && (
-                <div className="text-xs text-blue-600">Selected</div>
-              )}
-            </div>
-          ))}
+        <div className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="max-h-72 overflow-auto">
+            {filteredOptions.map((option, index) => (
+              <div
+                key={index}
+                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all ${
+                  isOptionSelected(option) ? 'bg-gray-50' : ''
+                }`}
+                onClick={() => handleOptionSelect(option)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">{option.value}</div>
+                    <div className="text-sm text-gray-500 mt-0.5">{option.label}</div>
+                  </div>
+                  {isOptionSelected(option) && (
+                    <span className="text-black">✓</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

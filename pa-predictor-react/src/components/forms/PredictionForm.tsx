@@ -71,37 +71,26 @@ const PredictionForm: React.FC<PredictionFormProps> = ({
     switch (step) {
       case 1:
         if (!formData.patient_age || formData.patient_age < 18 || formData.patient_age > 90) {
-          newErrors.patient_age = 'Patient age must be between 18 and 90';
+          newErrors.patient_age = 'Age must be between 18 and 90';
         }
         if (!formData.patient_gender) {
-          newErrors.patient_gender = 'Patient gender is required';
-        }
-        if (!formData.procedure_code) {
-          newErrors.procedure_code = 'Procedure code is required';
-        } else if (!cptCodes.some(c => c.code === formData.procedure_code.toUpperCase())) {
-          newErrors.procedure_code = 'Please enter a valid CPT code';
-        }
-        if (!formData.diagnosis_code) {
-          newErrors.diagnosis_code = 'Diagnosis code is required';
-        } else if (!icd10Codes.some(c => c.code === formData.diagnosis_code.toUpperCase())) {
-          newErrors.diagnosis_code = 'Please enter a valid ICD-10 code';
-        }
-        if (!formData.provider_specialty) {
-          newErrors.provider_specialty = 'Provider specialty is required';
+          newErrors.patient_gender = 'Gender is required';
         }
         break;
       case 2:
+        if (!formData.procedure_code) {
+          newErrors.procedure_code = 'Procedure code is required';
+        }
+        if (!formData.diagnosis_code) {
+          newErrors.diagnosis_code = 'Diagnosis code is required';
+        }
+        if (!formData.provider_specialty) {
+          newErrors.provider_specialty = 'Specialty is required';
+        }
+        break;
+      case 3:
         if (!formData.payer) {
           newErrors.payer = 'Payer is required';
-        }
-        if (!formData.urgency_flag) {
-          newErrors.urgency_flag = 'Urgency flag is required';
-        }
-        if (!formData.documentation_complete) {
-          newErrors.documentation_complete = 'Documentation complete is required';
-        }
-        if (formData.prior_denials_provider === undefined || formData.prior_denials_provider < 0) {
-          newErrors.prior_denials_provider = 'Prior denials is required';
         }
         if (!formData.region) {
           newErrors.region = 'Region is required';
@@ -115,7 +104,7 @@ const PredictionForm: React.FC<PredictionFormProps> = ({
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 2));
+      setCurrentStep(prev => Math.min(prev + 1, 3));
     }
   };
 
@@ -138,32 +127,44 @@ const PredictionForm: React.FC<PredictionFormProps> = ({
   };
 
   const steps = [
-    { number: 1, title: 'Patient & Procedure Information' },
-    { number: 2, title: 'Request Details' }
+    { number: 1, title: 'Patient Information', subtitle: 'Basic demographics' },
+    { number: 2, title: 'Medical Details', subtitle: 'Procedure and diagnosis' },
+    { number: 3, title: 'Insurance & Request', subtitle: 'Payer and additional info' }
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      {/* Stepper */}
-      <div className="mb-8">
+    <div className="max-w-3xl mx-auto">
+      {/* Progress Steps - Minimal Apple Style */}
+      <div className="mb-12">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => (
-            <div key={step.number} className="flex items-center">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
-                currentStep >= step.number
-                  ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'border-gray-300 text-gray-500'
-              }`}>
-                {step.number}
+            <div key={step.number} className="flex items-center flex-1">
+              <div className="flex flex-col items-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  currentStep > step.number 
+                    ? 'bg-black text-white' 
+                    : currentStep === step.number 
+                    ? 'bg-black text-white scale-110' 
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {currentStep > step.number ? (
+                    <span className="text-lg">✓</span>
+                  ) : (
+                    <span className="text-sm font-light">{step.number}</span>
+                  )}
+                </div>
+                <div className="mt-2 text-center">
+                  <p className={`text-sm font-medium transition-all ${
+                    currentStep >= step.number ? 'text-gray-900' : 'text-gray-400'
+                  }`}>{step.title}</p>
+                  <p className={`text-xs transition-all ${
+                    currentStep >= step.number ? 'text-gray-500' : 'text-gray-300'
+                  }`}>{step.subtitle}</p>
+                </div>
               </div>
-              <span className={`ml-2 text-sm font-medium ${
-                currentStep >= step.number ? 'text-blue-600' : 'text-gray-500'
-              }`}>
-                {step.title}
-              </span>
               {index < steps.length - 1 && (
-                <div className={`w-16 h-0.5 mx-4 ${
-                  currentStep > step.number ? 'bg-blue-600' : 'bg-gray-300'
+                <div className={`flex-1 h-[1px] mx-8 transition-all duration-500 ${
+                  currentStep > step.number ? 'bg-black' : 'bg-gray-200'
                 }`} />
               )}
             </div>
@@ -171,263 +172,284 @@ const PredictionForm: React.FC<PredictionFormProps> = ({
         </div>
       </div>
 
-      {/* Step 1: Patient & Procedure Information */}
-      {currentStep === 1 && (
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900">Patient & Procedure Information</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Form Content */}
+      <div className="bg-white rounded-3xl p-10 shadow-sm">
+        {/* Step 1: Patient Information */}
+        {currentStep === 1 && (
+          <div className="space-y-8 animate-fadeIn">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Patient Age
-              </label>
-              <input
-                type="number"
-                value={formData.patient_age || ''}
-                onChange={(e) => updateFormData('patient_age', parseInt(e.target.value) || 18)}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.patient_age ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter patient age"
-                min="18"
-                max="90"
-              />
-              {errors.patient_age && (
-                <p className="mt-1 text-sm text-red-600">{errors.patient_age}</p>
-              )}
+              <h2 className="text-2xl font-light text-gray-900 mb-2 tracking-tight">Patient Information</h2>
+              <p className="text-gray-600 text-[15px] leading-relaxed">Enter basic patient demographics</p>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Patient Gender
-              </label>
-              <select
-                value={formData.patient_gender}
-                onChange={(e) => updateFormData('patient_gender', e.target.value as 'M' | 'F')}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.patient_gender ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select gender</option>
-                <option value="M">Male</option>
-                <option value="F">Female</option>
-              </select>
-              {errors.patient_gender && (
-                <p className="mt-1 text-sm text-red-600">{errors.patient_gender}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Procedure Code (CPT)
-              </label>
-              <Autocomplete
-                options={cptCodes.map(code => ({ value: code.code, label: `${code.code} - ${code.description}` }))}
-                onSelect={selected => {
-                  const code = selected[0]?.value || '';
-                  updateFormData('procedure_code', code);
-                }}
-                placeholder="Type to search CPT codes..."
-                multiple={false}
-              />
-              {errors.procedure_code && (
-                <p className="mt-1 text-sm text-red-600">{errors.procedure_code}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Diagnosis Code (ICD-10)
-              </label>
-              <Autocomplete
-                options={icd10Codes.map(code => ({ value: code.code, label: `${code.code} - ${code.description}` }))}
-                onSelect={selected => {
-                  const code = selected[0]?.value || '';
-                  updateFormData('diagnosis_code', code);
-                }}
-                placeholder="Type to search ICD-10 codes..."
-                multiple={false}
-              />
-              {errors.diagnosis_code && (
-                <p className="mt-1 text-sm text-red-600">{errors.diagnosis_code}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Provider Specialty
-              </label>
-              <select
-                value={formData.provider_specialty}
-                onChange={(e) => updateFormData('provider_specialty', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.provider_specialty ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select specialty</option>
-                {specialties.map(specialty => (
-                  <option key={specialty} value={specialty}>{specialty}</option>
-                ))}
-              </select>
-              {errors.provider_specialty && (
-                <p className="mt-1 text-sm text-red-600">{errors.provider_specialty}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Request Details */}
-      {currentStep === 2 && (
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900">Request Details</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Insurance Payer
-              </label>
-              <select
-                value={formData.payer}
-                onChange={(e) => updateFormData('payer', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.payer ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select payer</option>
-                {payers.map(payer => (
-                  <option key={payer} value={payer}>{payer}</option>
-                ))}
-              </select>
-              {errors.payer && (
-                <p className="mt-1 text-sm text-red-600">{errors.payer}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Urgent Request
-              </label>
-              <select
-                value={formData.urgency_flag}
-                onChange={(e) => updateFormData('urgency_flag', e.target.value as 'Y' | 'N')}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.urgency_flag ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select urgency</option>
-                <option value="Y">Yes</option>
-                <option value="N">No</option>
-              </select>
-              {errors.urgency_flag && (
-                <p className="mt-1 text-sm text-red-600">{errors.urgency_flag}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Documentation Complete
-              </label>
-              <select
-                value={formData.documentation_complete}
-                onChange={(e) => updateFormData('documentation_complete', e.target.value as 'Y' | 'N')}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.documentation_complete ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select status</option>
-                <option value="Y">Yes</option>
-                <option value="N">No</option>
-              </select>
-              {errors.documentation_complete && (
-                <p className="mt-1 text-sm text-red-600">{errors.documentation_complete}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Prior Denials
-              </label>
-              <input
-                type="number"
-                value={formData.prior_denials_provider || ''}
-                onChange={(e) => updateFormData('prior_denials_provider', parseInt(e.target.value) || 0)}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.prior_denials_provider ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter number of prior denials"
-                min="0"
-                max="10"
-              />
-              {errors.prior_denials_provider && (
-                <p className="mt-1 text-sm text-red-600">{errors.prior_denials_provider}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Region
-              </label>
-              <select
-                value={formData.region}
-                onChange={(e) => updateFormData('region', e.target.value as 'Midwest' | 'Northeast' | 'South' | 'West')}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.region ? 'border-red-300' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select region</option>
-                <option value="Midwest">Midwest</option>
-                <option value="Northeast">Northeast</option>
-                <option value="South">South</option>
-                <option value="West">West</option>
-              </select>
-              {errors.region && (
-                <p className="mt-1 text-sm text-red-600">{errors.region}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation Buttons */}
-      <div className="flex justify-between mt-8">
-        <button
-          type="button"
-          onClick={prevStep}
-          disabled={currentStep === 1}
-          className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          ← Previous
-        </button>
-
-        {currentStep < 2 ? (
-          <button
-            type="button"
-            onClick={nextStep}
-            className="px-6 py-3 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
-          >
-            Next →
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 border border-transparent rounded-lg hover:from-green-700 hover:to-green-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-          >
-            {loading ? (
-              <div className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[15px] font-medium text-gray-700 mb-2 tracking-tight">Age</label>
+                <input
+                  type="number"
+                  value={formData.patient_age || ''}
+                  onChange={(e) => updateFormData('patient_age', parseInt(e.target.value) || 18)}
+                  className={`w-full px-0 py-4 border-0 border-b-2 focus:border-blue-600 focus:outline-none text-2xl font-light transition-all ${
+                    errors.patient_age ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                  placeholder="Enter age"
+                  min="18"
+                  max="90"
+                />
+                {errors.patient_age && (
+                  <p className="mt-2 text-sm text-red-600">{errors.patient_age}</p>
+                )}
               </div>
-            ) : (
-              '🚀 Predict Approval'
-            )}
-          </button>
+
+              <div>
+                <label className="block text-[15px] font-medium text-gray-700 mb-4 tracking-tight">Gender</label>
+                <div className="flex space-x-4">
+                  {[
+                    { value: 'M', label: 'Male' },
+                    { value: 'F', label: 'Female' }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateFormData('patient_gender', option.value as 'M' | 'F')}
+                      className={`flex-1 py-4 px-6 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${
+                        formData.patient_gender === option.value
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-gray-200 hover:border-gray-400 hover:scale-[1.02]'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {errors.patient_gender && (
+                  <p className="mt-2 text-sm text-red-600">{errors.patient_gender}</p>
+                )}
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Step 2: Medical Details */}
+        {currentStep === 2 && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-light text-gray-900 mb-2">Medical Details</h2>
+              <p className="text-gray-500">Specify procedure and diagnosis information</p>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Procedure Code (CPT)</label>
+                <Autocomplete
+                  options={cptCodes.map(code => ({ 
+                    value: code.code, 
+                    label: `${code.code} - ${code.description}` 
+                  }))}
+                  onSelect={selected => {
+                    const code = selected[0]?.value || '';
+                    updateFormData('procedure_code', code);
+                  }}
+                  placeholder="Search CPT codes..."
+                  multiple={false}
+                />
+                {errors.procedure_code && (
+                  <p className="mt-2 text-sm text-red-600">{errors.procedure_code}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Diagnosis Code (ICD-10)</label>
+                <Autocomplete
+                  options={icd10Codes.map(code => ({ 
+                    value: code.code, 
+                    label: `${code.code} - ${code.description}` 
+                  }))}
+                  onSelect={selected => {
+                    const code = selected[0]?.value || '';
+                    updateFormData('diagnosis_code', code);
+                  }}
+                  placeholder="Search ICD-10 codes..."
+                  multiple={false}
+                />
+                {errors.diagnosis_code && (
+                  <p className="mt-2 text-sm text-red-600">{errors.diagnosis_code}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Provider Specialty</label>
+                <select
+                  value={formData.provider_specialty}
+                  onChange={(e) => updateFormData('provider_specialty', e.target.value)}
+                  className={`w-full px-0 py-4 border-0 border-b-2 focus:border-black focus:outline-none text-lg font-light appearance-none bg-transparent transition-all ${
+                    errors.provider_specialty ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="">Select specialty</option>
+                  {specialties.map(specialty => (
+                    <option key={specialty} value={specialty}>{specialty}</option>
+                  ))}
+                </select>
+                {errors.provider_specialty && (
+                  <p className="mt-2 text-sm text-red-600">{errors.provider_specialty}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Insurance & Request Details */}
+        {currentStep === 3 && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-light text-gray-900 mb-2">Insurance & Request Details</h2>
+              <p className="text-gray-500">Complete the authorization request</p>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Payer</label>
+                <select
+                  value={formData.payer}
+                  onChange={(e) => updateFormData('payer', e.target.value)}
+                  className={`w-full px-0 py-4 border-0 border-b-2 focus:border-black focus:outline-none text-lg font-light appearance-none bg-transparent transition-all ${
+                    errors.payer ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="">Select payer</option>
+                  {payers.map(payer => (
+                    <option key={payer} value={payer}>{payer}</option>
+                  ))}
+                </select>
+                {errors.payer && (
+                  <p className="mt-2 text-sm text-red-600">{errors.payer}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-4">Urgent Request?</label>
+                  <div className="flex space-x-2">
+                    {[
+                      { value: 'Y', label: 'Yes' },
+                      { value: 'N', label: 'No' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => updateFormData('urgency_flag', option.value as 'Y' | 'N')}
+                        className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${
+                          formData.urgency_flag === option.value
+                            ? 'border-black bg-black text-white'
+                            : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-4">Documentation Complete?</label>
+                  <div className="flex space-x-2">
+                    {[
+                      { value: 'Y', label: 'Yes' },
+                      { value: 'N', label: 'No' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => updateFormData('documentation_complete', option.value as 'Y' | 'N')}
+                        className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${
+                          formData.documentation_complete === option.value
+                            ? 'border-black bg-black text-white'
+                            : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prior Denials</label>
+                  <input
+                    type="number"
+                    value={formData.prior_denials_provider || ''}
+                    onChange={(e) => updateFormData('prior_denials_provider', parseInt(e.target.value) || 0)}
+                    className="w-full px-0 py-4 border-0 border-b-2 border-gray-200 focus:border-black focus:outline-none text-lg font-light transition-all"
+                    placeholder="0"
+                    min="0"
+                    max="10"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                  <select
+                    value={formData.region}
+                    onChange={(e) => updateFormData('region', e.target.value as 'Midwest' | 'Northeast' | 'South' | 'West')}
+                    className="w-full px-0 py-4 border-0 border-b-2 border-gray-200 focus:border-black focus:outline-none text-lg font-light appearance-none bg-transparent transition-all"
+                  >
+                    <option value="">Select region</option>
+                    <option value="Midwest">Midwest</option>
+                    <option value="Northeast">Northeast</option>
+                    <option value="South">South</option>
+                    <option value="West">West</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between mt-12">
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={prevStep}
+              className="px-8 py-4 text-sm font-medium text-gray-700 hover:text-black transition-all"
+            >
+              Back
+            </button>
+          )}
+
+          {currentStep < 3 ? (
+            <button
+              type="button"
+              onClick={nextStep}
+              className="ml-auto px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center group shadow-md hover:shadow-lg hover:scale-[1.02]"
+            >
+              Continue
+              <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="ml-auto px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center shadow-md hover:shadow-lg hover:scale-[1.02]"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  Get Prediction
+                  <span className="ml-2">→</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
